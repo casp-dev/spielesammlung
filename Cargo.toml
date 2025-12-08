@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "platform",
+    "game_core",
+    "games/chess",
+    "games/kniffel",
+    "games/minesweeper",
+    "games/go",
+
+]
+resolver = "2"

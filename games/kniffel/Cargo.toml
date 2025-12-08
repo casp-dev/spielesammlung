@@ -1,0 +1,8 @@
+[package]
+name = "kniffel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+game_core = { path = "../../game_core" }
+egui = "0.29.1"
