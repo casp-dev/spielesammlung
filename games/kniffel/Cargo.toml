@@ -6,3 +6,8 @@ edition = "2021"
 [dependencies]
 game_core = { path = "../../game_core" }
 egui = "0.29.1"
+rand = "0.8"
+
+[[bin]]
+name = "kniffel"
+path = "src/kniffel.rs"
