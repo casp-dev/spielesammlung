@@ -13,7 +13,7 @@ In some versions of the game when the number of adjacent mines is equal to the n
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use rand::Rng; // later for mine placement
+use rand::Rng;
 
 #[derive(Clone, PartialEq, Debug, Eq, Copy)]
 pub enum CellState {
@@ -52,6 +52,52 @@ pub struct Cell {
     cell_content: CellContent,
 }
 
+#[allow(unused_parens)]
+pub fn adjacent_mines(game: &Game, y: &usize, x: &usize) -> u8 {
+    let mut count = 0;
+    for dy in -1..=1 {
+        for dx in -1..=1 {
+            if dx == 0 && dy == 0 {
+                continue;
+            }
+
+            let nx = *x as isize + dx;
+            let ny = *y as isize + dy;
+
+            if nx >= 0 && ny >= 0 {
+                let nx = nx as usize;
+                let ny = ny as usize;
+
+                if ny < game.board.len() && nx < game.board[0].len() {
+                    if let CellContent::Mine = game.board[ny][nx].cell_content {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    count
+}
+
+#[allow(unused_parens)]
+pub fn set_blancs_and_numbers(game: &mut Game) {
+    let height = game.board.len();
+    let width = game.board[0].len();
+    for y in 0..height {
+        for x in 0..width {
+            if let CellContent::Mine = game.board[y][x].cell_content {
+                continue;
+            }
+            let mines_nearby = adjacent_mines(game, &y, &x);
+            if (mines_nearby == 0) {
+                game.board[y][x].cell_content = CellContent::Blank;
+            } else {
+                game.board[y][x].cell_content = CellContent::Number(mines_nearby);
+            }
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, Eq)]
 pub struct Game {
     board: Vec<Vec<Cell>>,
@@ -67,4 +113,69 @@ pub trait Minesweeper {
     fn apply_action(&mut self, action_kind: ActionKind) -> Result<(), &'static str>;
     fn winner(&self) -> bool;
     // TODO: game lock in case of boom!....
+}
+
+#[allow(unused_parens)]
+impl Minesweeper for Game {
+    fn new_game(difficulty: Difficulty) -> Self {
+        // For the Future: First Clicked Cell cant be a Mine -> move Mine after initial board creation if needed
+        let default_cell = Cell {
+            cell_content: CellContent::Blank,
+            cell_state: CellState::Unopened,
+        };
+        let mine_cell = Cell {
+            cell_content: CellContent::Mine,
+            cell_state: CellState::Unopened,
+        };
+        let (mut board, mine_count) = match difficulty {
+            Difficulty::Easy => {
+                (vec![vec![default_cell; 9]; 9], 10) // 9x9, 10 Mines
+            }
+            Difficulty::Medium => {
+                (vec![vec![default_cell; 16]; 16], 40) // 16x16, 40 Mines
+            }
+            Difficulty::Hard => {
+                (vec![vec![default_cell; 22]; 22], 80) // 22x22, 80 Mines
+            }
+            Difficulty::Expert => {
+                (vec![vec![default_cell; 30]; 16], 99) // 30x16, 99 Mines
+            }
+        };
+        let column = board[0].len(); // XXXX
+        let rows = board.len(); // Y
+        //                                Y
+        //                                Y
+        //                                Y
+        let cell_count = column * rows;
+        let mut no_dupes: Vec<usize> = Vec::new();
+        while (no_dupes.len() < mine_count) {
+            let random_number = rand::thread_rng().gen_range(0..cell_count);
+            if !(no_dupes.contains(&random_number)) {
+                no_dupes.push(random_number);
+                let y = random_number / column; // Y-Value
+                let x = random_number % column; // X-Value
+                board[y][x].cell_content = CellContent::Mine;
+            }
+        }
+        let mut game = Game {
+            board: board,
+            action_counter: 0, // NOT USED YET
+            mine_count: mine_count,
+            flag_count: mine_count,
+            game_over: false,
+            game_won: false,
+        };
+
+        set_blancs_and_numbers(&mut game);
+
+        return game;
+    }
+
+    fn apply_action(&mut self, action_kind: ActionKind) -> Result<(), &'static str> {
+        unimplemented!()
+    }
+
+    fn winner(&self) -> bool {
+        unimplemented!()
+    }
 }
