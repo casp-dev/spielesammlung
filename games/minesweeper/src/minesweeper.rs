@@ -108,6 +108,82 @@ pub fn is_action_allowed(game: &Game, action_kind: &ActionKind) -> bool {
 }
 
 #[allow(unused_parens)]
+pub fn flag(game: &mut Game, action_kind: &ActionKind) {
+    if let ActionKind::Flag(x, y) = action_kind {
+        if (game.board[*y][*x].cell_state == CellState::Unopened) {
+            game.board[*y][*x].cell_state = CellState::Flagged;
+            game.flag_count = game.flag_count - 1;
+            return;
+        }
+        if (game.board[*y][*x].cell_state == CellState::Flagged) {
+            game.board[*y][*x].cell_state = CellState::Unopened;
+            game.flag_count = game.flag_count + 1;
+            return;
+        }
+    }
+}
+
+#[allow(unused_parens)]
+pub fn open(game: &mut Game, action_kind: &ActionKind) {
+    if let ActionKind::Open(x, y) = action_kind {
+        if let CellContent::Number(_) = game.board[*y][*x].cell_content {
+            game.board[*y][*x].cell_state = CellState::Opened;
+        }
+        if (game.board[*y][*x].cell_content == CellContent::Blank) {
+            game.board[*y][*x].cell_state = CellState::Opened;
+            flood_fill(game, &y, &x);
+        }
+        if (game.board[*y][*x].cell_content == CellContent::Mine) {
+            game.board[*y][*x].cell_state = CellState::Opened;
+            boom(game);
+        }
+    }
+}
+
+#[allow(unused_parens)]
+pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
+    for dy in -1..=1 {
+        for dx in -1..=1 {
+            if dx == 0 && dy == 0 {
+                continue;
+            }
+
+            if (game.board[*y][*x].cell_state == CellState::Opened) {
+                return;
+            }
+
+            let nx = *x as isize + dx;
+            let ny = *y as isize + dy;
+
+            if nx >= 0 && ny >= 0 {
+                let nx = nx as usize;
+                let ny = ny as usize;
+
+                if (game.board[ny][nx].cell_state == CellState::Opened) {
+                    continue;
+                }
+
+                if ny < game.board.len() && nx < game.board[0].len() {
+                    if let CellContent::Number(_) = game.board[ny][nx].cell_content {
+                        open(game, &ActionKind::Open((nx), (ny)));
+                    }
+                    if let CellContent::Blank = game.board[ny][nx].cell_content {
+                        open(game, &ActionKind::Open((nx), (ny)));
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn boom(game: &mut Game) -> bool {
+    game.game_over = true;
+    game.game_won = false;
+    
+    return game.game_over;
+}
+
+#[allow(unused_parens)]
 pub fn adjacent_mines(game: &Game, y: &usize, x: &usize) -> u8 {
     let mut count = 0;
     for dy in -1..=1 {
@@ -226,8 +302,21 @@ impl Minesweeper for Game {
         return game;
     }
 
-    fn apply_action(&mut self, action_kind: ActionKind) -> Result<(), &'static str> {
-        unimplemented!()
+        fn apply_action(&mut self, action_kind: ActionKind) -> Result<(), &'static str> {
+        if !(is_action_allowed(&self, &action_kind)) {
+            return Err("Action not Allowed");
+        }
+
+        match action_kind {
+            ActionKind::Open(_, _) => {
+                open(self, &action_kind);
+                Ok(())
+            }
+            ActionKind::Flag(_, _) => {
+                flag(self, &action_kind);
+                Ok(())
+            }
+        }
     }
 
     fn winner(&self) -> bool {
