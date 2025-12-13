@@ -53,6 +53,61 @@ pub struct Cell {
 }
 
 #[allow(unused_parens)]
+pub fn is_on_board(game: &Game, action_kind: &ActionKind) -> bool {
+    // change to y,x in the future
+    let (x, y) = match action_kind {
+        ActionKind::Open(x, y) => (*x, *y),
+        ActionKind::Flag(x, y) => (*x, *y),
+    };
+    if (x < game.board[0].len() && y < game.board.len()) {
+        return true;
+    }
+    return false;
+}
+
+#[allow(unused_parens)]
+pub fn flag_allowed(game: &Game, action_kind: &ActionKind) -> bool {
+    if !(is_on_board(game, action_kind)) {
+        return false;
+    }
+    if let ActionKind::Flag(x, y) = action_kind {
+        if (game.board[*y][*x].cell_state == CellState::Unopened
+            || (game.board[*y][*x].cell_state == CellState::Flagged))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+#[allow(unused_parens)]
+pub fn open_allowed(game: &Game, action_kind: &ActionKind) -> bool {
+    if !(is_on_board(game, action_kind)) {
+        return false;
+    }
+    if let ActionKind::Open(x, y) = action_kind {
+        if (game.board[*y][*x].cell_state == CellState::Unopened) {
+            return true;
+        }
+    }
+    return false;
+}
+
+#[allow(unused_parens)]
+pub fn is_action_allowed(game: &Game, action_kind: &ActionKind) -> bool {
+    if(game.game_over == true) {
+        return false;
+    }
+    if(game.game_won == true) {
+    return false;
+    }
+    match action_kind {
+        ActionKind::Open(_, _) => open_allowed(game, action_kind),
+        ActionKind::Flag(_, _) => flag_allowed(game, action_kind),
+    }
+}
+
+#[allow(unused_parens)]
 pub fn adjacent_mines(game: &Game, y: &usize, x: &usize) -> u8 {
     let mut count = 0;
     for dy in -1..=1 {
