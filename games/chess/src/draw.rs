@@ -1,5 +1,3 @@
-use game_core::Game;
-
 use crate::{ChessGame, meeples::{Color, Meeple, Type, get_meeple_at}};
 
 pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
@@ -17,12 +15,15 @@ pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
                         " "
                     };
 
-                    let bg_color = if (x + y) % 2 != 0 {
+                    //background color
+                    let is_lighted = (x + y) % 2 != 0;
+                    let bg_color = if is_lighted {
                         egui::Color32::from_rgb(240, 217, 181)
                     } else {
                         egui::Color32::from_rgb(181, 136, 99)
                     };
 
+                    //highlight color
                     let mut button_color = bg_color;
                     if let Some(possible_moves) = &game.shown_moves {
                         if possible_moves.contains(&(x,y)) {
@@ -70,6 +71,6 @@ fn get_piece_char(meeple: Meeple) -> &'static str {
     }
 }
 
-fn handle_click(game: &mut ChessGame, (x_pos,y_pos): (usize,usize),highlighted: bool) {
-    println!("{},{}", x_pos,y_pos)
+fn handle_click(game: &mut ChessGame, pos: (usize,usize),highlighted: bool) {
+    game.show_moves(pos);
 }
