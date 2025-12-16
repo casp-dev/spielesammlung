@@ -45,7 +45,7 @@ pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
                     .min_size(egui::vec2(60.0, 60.0));
 
                     if ui.add(btn).clicked() {
-                        handle_click(game, (x,y), true);
+                        handle_click(game, (x,y), button_color == egui::Color32::from_rgb(100, 255, 100));
                     }
                 }
                 ui.end_row();
@@ -72,5 +72,9 @@ fn get_piece_char(meeple: Meeple) -> &'static str {
 }
 
 fn handle_click(game: &mut ChessGame, pos: (usize,usize),highlighted: bool) {
-    game.show_moves(pos);
+    if highlighted {
+        game.move_meeple(pos);
+    } else {
+        game.show_moves(pos);   
+    }
 }
