@@ -1,14 +1,16 @@
+mod game;
+
 use egui::Ui;
 use game_core::Game;
 
 pub struct GoGame {
-    state: String,
+    game: game::Game,
 }
 
 impl GoGame {
     pub fn new() -> Self {
         Self {
-            state: "Initial Go State".to_string(),
+            game: game::Game::new(19),
         }
     }
 }
@@ -20,10 +22,10 @@ impl Game for GoGame {
 
     fn ui(&mut self, ui: &mut Ui) {
         ui.heading("Go");
-        ui.label(format!("Current State: {}", self.state));
+        ui.label(format!("Aktueller Zug: {:?}", self.game.current_turn));
 
-        if ui.button("Make Move (e4)").clicked() {
-            self.state = "Go move: e4".to_string();
+        if ui.button("Pass").clicked() {
+            //todo
         }
     }
 }
