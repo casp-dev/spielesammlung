@@ -5,6 +5,13 @@ pub enum Color {
     White,Black,
 } 
 
+pub fn opposite_color(color: Color) -> Color {
+    if color == Color::White {
+        return Color::Black;
+    }
+    Color::White
+}
+
 #[derive(Copy, Clone, PartialEq,Debug)]
 pub enum Type {
     Pawn,Knight,Bishop,Rook,Queen,King,
@@ -176,7 +183,9 @@ impl Meeple {
         }
 
         if let Some(right_meeples) = check_vec_right {
-            possible_moves.push((6,y));
+            if self.check_casteling_chess(right_meeples, chess_board) {
+                possible_moves.push((6,y));
+            }
         } 
 
         let mut check_vec_left:Option<Vec<(usize,usize)>> = None;
@@ -189,7 +198,9 @@ impl Meeple {
         }
 
         if let Some(left_meeples) = check_vec_left {
-            possible_moves.push((2,y));
+            if self.check_casteling_chess(left_meeples, chess_board) {
+                possible_moves.push((2,y));
+            }
         } 
         possible_moves
     }

@@ -1,10 +1,13 @@
+use std::usize;
+
 use egui::Ui;
 use game_core::Game;
 
 mod meeples;
-use crate::{draw::draw_board, meeples::{Color, Meeple, Type}};
+use crate::{draw::draw_board, meeples::{Color, Meeple, Type, opposite_color}};
 
 mod draw;
+//show_moves: die ganzen checks, castelling: auslagern, wenn es geht, turn 
 
 pub struct ChessGame {
     state: String,
@@ -35,7 +38,7 @@ impl ChessGame {
                 }
             }
         }
-        let possible_moves_ = get_all_possible_moves(turn_, chess_board, ((42,42),(42,42)));
+        let possible_moves_ = create_basic_possible_moves();
 
         Self {state: state_,game_board: chess_board, possible_moves: possible_moves_, kings: kings_, shown_moves: None,logs: logs_, clicked_meeple: (42,42),turn: turn_}
     }
@@ -51,14 +54,9 @@ impl ChessGame {
         }
     }   
 
-    pub fn show_moves(&mut self,(x,y):(usize,usize)) -> Option<Vec<(usize,usize)>>{
-        let mut return_vec = None;
-        if let Some(meeple) = self.game_board[x][y] {
-            return_vec = Some(meeple.show_moves(self.game_board,*self.logs.last().clone().unwrap()));
-        }
-        self.shown_moves = return_vec.clone();
+    pub fn show_moves(&mut self,(x,y):(usize,usize)) {
+        self.shown_moves = self.possible_moves[x] [y].clone();
         self.clicked_meeple = (x,y);
-        return_vec
     }
 
     pub fn move_meeple(&mut self,scnd: (usize,usize)) {
@@ -74,8 +72,9 @@ impl ChessGame {
         self.game_board[scnd.0] [scnd.1].as_mut().unwrap().move_counter += 1;
         self.logs.push((self.clicked_meeple,scnd));   
         self.shown_moves = Default::default();
-        self.possible_moves = get_all_possible_moves(self.turn, self.game_board, *self.logs.last().clone().unwrap()); 
-        self.check_pawn_mutate(frst,scnd);  
+        self.check_pawn_mutate(frst,scnd); 
+        self.turn = opposite_color(self.turn);
+        self.possible_moves = self.get_all_possible_moves(); 
     }  
 
     fn walk_and_replace(&mut self,frst: (usize,usize), scnd: (usize,usize)) {
@@ -128,21 +127,112 @@ impl ChessGame {
             }
         }
     }
+    
+    fn get_all_possible_moves(&mut self) -> [[Option<Vec<(usize,usize)>>;8];8] {
+        let mut ret_vec:[[Option<Vec<(usize,usize)>>;8];8] = Default::default();
+        let mut colores = get_meeples_from_color(self.game_board, self.turn);
+        let king = colores.0.last().unwrap().pos;
+        let mut can_move = false;
+        for colored_meeple in colores.0 {
+            if let Some(m) = self.check_meeple_moves_valid(colored_meeple,&colores.1,king) {
+                ret_vec[colored_meeple.pos.0] [colored_meeple.pos.1] = Some(m);
+                can_move = true;
+            }
+        }
+        if !can_move {
+            println!("jmd hat gewonnen");
+        }
+        ret_vec
+    }
+    
 
+    fn check_meeple_moves_valid(&mut self, meeple: Meeple,check_color: &Vec<Meeple>,king: (usize,usize)) -> Option<Vec<(usize,usize)>>{
+        let mut ret_vec:Vec<(usize,usize)> = Vec::new();
+        for check_meep in meeple.show_moves(self.game_board, *self.logs.clone().last().unwrap()) {
+            if let Some(pos) = self.check_the_future(meeple, check_meep,check_color,king) {
+                ret_vec.push(pos);
+            } 
+        }
+        
+        if ret_vec.is_empty() {
+            return None;
+        }
+        Some(ret_vec)
+    }
+
+    fn check_the_future(&mut self, current_meeple: Meeple,to_move: (usize,usize),check_color: &Vec<Meeple>, king: (usize,usize)) -> Option<(usize,usize)> {
+        let king_king = if current_meeple.typ == Type::King {
+            to_move.clone()
+        } else {
+            king
+        };
+        let mut check_colore = check_color.clone();
+        if let Some(index) = check_colore.iter().position(|&x| x.pos == to_move) {
+            check_colore.remove(index);
+        }
+        let from_pos = current_meeple.pos.clone();
+        let to_pos = to_move.clone();
+
+        let from = self.game_board[from_pos.0] [from_pos.1].clone();
+        let to = self.game_board[to_pos.0] [to_pos.1].take();
+        
+        self.walk_and_replace(from_pos, to_pos);
+        let can_hit = meeples_can_hit_meeple(&check_colore, king_king, self.game_board, (current_meeple.pos,to_move));
+        self.game_board[from_pos.0] [from_pos.1] = from;
+        self.game_board[to_pos.0] [to_pos.1] = to;
+
+        if can_hit {
+            return None;
+        }
+        Some(to_move)
+    }
 }
 
-fn get_all_possible_moves(turn: Color, chess_board:[[Option<Meeple>;8];8],last_move: ((usize,usize),(usize,usize))) -> [[Option<Vec<(usize,usize)>>;8];8] {
-    let mut ret_vec:[[Option<Vec<(usize,usize)>>;8];8] = Default::default();
-    for y in 0..7 {
-        for x in 0..7 {
+
+pub fn get_meeples_from_color(chess_board:[[Option<Meeple>;8];8],color_at_0: Color) -> (Vec<Meeple>,Vec<Meeple>) {
+    let mut ret_vec:(Vec<Meeple>,Vec<Meeple>) = (Vec::new(),Vec::new());
+    let mut kings:(Vec<Meeple>,Vec<Meeple>) = (Vec::new(),Vec::new());
+    for y in 0..8 {
+        for x in 0..8 {
             if let Some(meeple) = chess_board[x] [y] {
-                if meeple.color == turn {
-                    ret_vec[x] [y] = Some(meeple.show_moves(chess_board, last_move));
+                if meeple.color == color_at_0 {
+                    if meeple.typ == Type::King {
+                        kings.0.push(meeple);
+                    } else {
+                        ret_vec.0.push(meeple);
+                    }
+                } else {
+                    if meeple.typ == Type::King {
+                        kings.1.push(meeple);
+                    } else {
+                        ret_vec.1.push(meeple);
+                    }
                 }
             }
         }
     }
+    ret_vec.0.append(&mut kings.0);
+    ret_vec.1.append(&mut kings.1);
     ret_vec
+}
+
+fn create_basic_possible_moves() -> [[Option<Vec<(usize,usize)>>;8];8] {
+    let mut ret_vec:[[Option<Vec<(usize,usize)>>;8];8] = Default::default();
+    for index in 0..8 {
+        ret_vec[index] [6] = Some(vec![(index,5),(index,4)]);
+    }
+    ret_vec[1] [7] = Some(vec![(0,5),(2,5)]);
+    ret_vec[6] [7] = Some(vec![(7,5),(5,5)]);
+    ret_vec
+}
+
+fn meeples_can_hit_meeple(meeples: &Vec<Meeple>, meeple: (usize,usize), chess_board:[[Option<Meeple>;8];8], last_move: ((usize,usize),(usize,usize))) -> bool{
+    for check_meeple in meeples {
+        if check_meeple.show_moves(chess_board, last_move).contains(&meeple) {
+            return true;
+        }
+    }
+    false
 }
 
 impl Game for ChessGame {
