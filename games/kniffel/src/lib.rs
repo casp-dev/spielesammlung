@@ -67,7 +67,13 @@ impl KniffelGame {
     }
 
     fn ui_game(&mut self, ui: &mut egui::Ui) {
-        unimplemented!();
+        egui::SidePanel::left("kniffel_side_panel").show_inside(ui, |ui| {
+            ui.heading("Punktetabelle");
+            ui.label("TODO: Werte eintragen");
+        });
+
+        ui.heading("Kniffel Hauptbereich");
+        ui.label("TODO: Spiellogik/UI");
     }
 
     fn ui_game_over(&mut self, ui: &mut egui::Ui) {
