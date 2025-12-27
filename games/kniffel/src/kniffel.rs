@@ -129,7 +129,7 @@ fn next_player(game: &mut Game) -> Option<&Game> {
     None
 }
 
-fn throw_dice(game: &mut Game) {
+pub fn throw_dice(game: &mut Game) {
     if game.current_player.number_of_throws > 3 {
         game.current_player.number_of_throws = 1;
     }
