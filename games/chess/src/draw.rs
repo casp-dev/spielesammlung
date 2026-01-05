@@ -6,7 +6,7 @@ pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
         .show(ui, |ui| {
             for y in 0..8 {
                 for x in 0..8 {
-                    let meeple = get_meeple_at(game.game_board, (x,y));
+                    let meeple = get_meeple_at(&game.game_board, (x,y));
 
                     //string for the clickable
                     let pos_text = if let Some(m) = meeple {
@@ -51,6 +51,38 @@ pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
                 ui.end_row();
             }
         });
+        if !game.pawn_mutate {
+            return;
+        }
+        egui::Grid::new("mutate pawn")
+        .spacing(egui::vec2(0.0, 0.0))
+        .show(ui, |ui| {
+            let draw_meeples = match game.turn {
+                Color::Black => ["♘","♗","♖","♕"],
+                Color::White => ["♞","♝","♜","♛"],
+            };
+            for btn_str in draw_meeples {
+                let btn = egui::Button::new(
+                    egui::RichText::new(btn_str)
+                    .size(32.0)
+                    .color(if game.turn == Color::White {egui::Color32::WHITE} else {egui::Color32::BLACK})
+                )
+                .fill(egui::Color32::GRAY)
+                .min_size(egui::vec2(60.0, 60.0));
+
+                if ui.add(btn).clicked() {
+                    let mutate_into:Type;
+                    match btn_str {
+                        "♘" | "♞" => mutate_into = Type::Knight,
+                        "♗" | "♝" => mutate_into = Type::Bishop,
+                        "♖" | "♜" => mutate_into = Type::Rook,
+                        "♕" | "♛" => mutate_into = Type::Queen,
+                        _ => panic!("This should not happen"),
+                    }
+                    game.mutate_pawn(mutate_into);
+                }
+            }
+        });
 }
 
 
@@ -72,6 +104,10 @@ fn get_piece_char(meeple: Meeple) -> &'static str {
 }
 
 fn handle_click(game: &mut ChessGame, pos: (usize,usize),highlighted: bool) {
+    if game.pawn_mutate {
+        return;
+    }
+
     if highlighted {
         game.move_meeple(pos);
     } else {

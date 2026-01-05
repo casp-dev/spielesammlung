@@ -25,27 +25,28 @@ pub struct Meeple {
     pub typ: Type,
     pub color: Color,
     pub move_counter: u128,
+    pub value: f32,
 }
 
 impl Meeple {
-    pub fn new(point: (usize,usize),meeple_type: Type, meeple_color: Color) -> Meeple {
-        Meeple { pos: point, typ: meeple_type, color: meeple_color, move_counter: 0}
+    pub fn new(point: (usize,usize),meeple_type: Type, meeple_color: Color,meeple_value: f32) -> Meeple {
+        Meeple { pos: point, typ: meeple_type, color: meeple_color, move_counter: 0, value: meeple_value}
     }
 
     ///This function returns a Vec<> with the positions where the Meeple can go to
     ///it runs seperate functions for each type of Meeple
-    pub fn show_moves(&self,chess_board:[[Option<Meeple>;8];8],last_move: ((usize,usize),(usize,usize))) -> Vec<(usize,usize)> {
+    pub fn show_moves(&self,chess_board:&[[Option<Meeple>;8];8],last_move: &((usize,usize),(usize,usize))) -> Vec<(usize,usize)> {
         match self.typ {
             Type::Pawn => self.show_moves_pawn(chess_board,last_move),
-            Type::Knight => self.show_moves_knight(chess_board),
-            Type::Bishop => self.show_moves_bishop(chess_board),
-            Type::Rook => self.show_moves_rook(chess_board),
-            Type::Queen => self.show_moves_queen(chess_board),
-            Type::King => self.show_moves_king(chess_board),
+            Type::Knight => self.show_moves_knight(&chess_board),
+            Type::Bishop => self.show_moves_bishop(&chess_board),
+            Type::Rook => self.show_moves_rook(&chess_board),
+            Type::Queen => self.show_moves_queen(&chess_board),
+            Type::King => self.show_moves_king(&chess_board,last_move),
         }
     }
 
-    fn show_moves_pawn(&self,chess_board:[[Option<Meeple>;8];8],last_move: ((usize,usize),(usize,usize))) -> Vec<(usize,usize)> {
+    fn show_moves_pawn(&self,chess_board:&[[Option<Meeple>;8];8],last_move: &((usize,usize),(usize,usize))) -> Vec<(usize,usize)> {
         let mut possible_moves:Vec<(usize,usize)> = Vec::new();
         let pawn_move_add_vec = self.get_pawn_vec();
         let mut check_pos = self.pos_add(pawn_move_add_vec[0]);
@@ -71,7 +72,7 @@ impl Meeple {
         //en passent
         for add_vec in [(-1,0),(1,0)] {
             check_pos = self.pos_add(add_vec);
-            if self.pos.1 == pawn_move_add_vec[4].0 as usize && self.pos_is_valid(check_pos) && self.pos_is_opposite_color(check_pos, chess_board) {
+            if self.pos.1 == pawn_move_add_vec[4].0 as usize && self.pos_is_valid(check_pos) && self.pos_is_opposite_color(check_pos, &chess_board) {
                 if let Some(meep) = get_meeple_at(chess_board, check_pos) {
                     if meep.typ == Type::Pawn && meep.move_counter == 1  && last_move.1 == check_pos{
                         possible_moves.push(self.pos_add((add_vec.0,pawn_move_add_vec[0].1)));
@@ -89,20 +90,20 @@ impl Meeple {
         }
     }
 
-    fn show_moves_knight(&self,chess_board:[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
+    fn show_moves_knight(&self,chess_board:&[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
         let mut possible_moves:Vec<(usize,usize)> = Vec::new();
         let check_add_vec:[(i8,i8);8] = [(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(-1,2),(1,-2),(-1,-2)];
     
         for add_pos in check_add_vec {
             let added_pos = self.pos_add(add_pos);
-            if self.pos_is_valid(added_pos) && self.pos_is_opposite_color_or_none(added_pos, chess_board) {
+            if self.pos_is_valid(added_pos) && self.pos_is_opposite_color_or_none(added_pos, &chess_board) {
                 possible_moves.push(added_pos);
             }
         }
         possible_moves
     }
 
-    fn show_moves_bishop(&self,chess_board:[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
+    fn show_moves_bishop(&self,chess_board:&[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
         let mut possible_moves:Vec<(usize,usize)> = Vec::new();
         let check_add_mult_vec:[(i8,i8);4] = [(1,1),(-1,-1),(1,-1),(-1,1)];
 
@@ -124,7 +125,7 @@ impl Meeple {
         possible_moves
     }
 
-    fn show_moves_rook(&self,chess_board:[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
+    fn show_moves_rook(&self,chess_board:&[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
         let mut possible_moves:Vec<(usize,usize)> = Vec::new();
         let check_add_mult_vec:[(i8,i8);4] = [(1,0),(-1,0),(0,1),(0,-1)];
 
@@ -146,13 +147,13 @@ impl Meeple {
         possible_moves
     }
 
-    fn show_moves_queen(&self,chess_board:[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
+    fn show_moves_queen(&self,chess_board:&[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
         let mut possible_moves:Vec<(usize,usize)> = self.show_moves_rook(chess_board);
         possible_moves.append(&mut self.show_moves_bishop(chess_board));
         possible_moves
     }
 
-    fn show_moves_king(&self,chess_board:[[Option<Meeple>;8];8]) -> Vec<(usize,usize)> {
+    fn show_moves_king(&self,chess_board:&[[Option<Meeple>;8];8],last_move: &((usize,usize),(usize,usize))) -> Vec<(usize,usize)> {
         let mut possible_moves:Vec<(usize,usize)> = Vec::new();
         let check_add_vec:[(i8,i8);8] = [(-1,-1),(0,-1),(1,-1),(-1,0),(1,0),(-1,1),(0,1),(1,1)];
     
@@ -163,13 +164,13 @@ impl Meeple {
             }
         }
 
-        if self.move_counter == 0 {
+        if self.move_counter == 0 && last_move != &((42,42),(42,42)) {
             possible_moves.append(&mut self.check_casteling_king_and_queen(chess_board));
         }
 
         possible_moves
     }
-    fn check_casteling_king_and_queen(&self,chess_board:[[Option<Meeple>;8];8]) -> Vec<(usize,usize)>{
+    fn check_casteling_king_and_queen(&self,chess_board:&[[Option<Meeple>;8];8]) -> Vec<(usize,usize)>{
         let mut possible_moves:Vec<(usize,usize)> = Vec::new();
         let y = self.pos.1;
     
@@ -205,7 +206,7 @@ impl Meeple {
         possible_moves
     }
 
-    fn check_casteling_chess(&self,check_meeples: Vec<(usize,usize)>,chess_board:[[Option<Meeple>;8];8]) -> bool {
+    fn check_casteling_chess(&self,check_meeples: Vec<(usize,usize)>,chess_board:&[[Option<Meeple>;8];8]) -> bool {
         for row in chess_board {
             for check_option_meeple in row {
                 if let Some(check_meeple) = check_option_meeple {
@@ -220,8 +221,8 @@ impl Meeple {
         true
     }
 
-    fn check_casteling_chess_contains(&self,casteling_check_list: Vec<(usize,usize)>, check_meeple: Meeple, chess_board:[[Option<Meeple>;8];8]) -> bool {
-        !check_meeple.show_moves(chess_board,((42,42),(42,42))).iter().any(|&item| casteling_check_list.contains(&item))
+    fn check_casteling_chess_contains(&self,casteling_check_list: Vec<(usize,usize)>, check_meeple: &Meeple, chess_board:&[[Option<Meeple>;8];8]) -> bool {
+        !check_meeple.show_moves(chess_board,&((42,42),(42,42))).iter().any(|&item| casteling_check_list.contains(&item))
     }
 
     ///checks if the position is valid ((42,42) is unvalid)
@@ -244,7 +245,7 @@ impl Meeple {
     }
 
     ///returns if the meeple at check_pos is None
-    fn pos_is_none(&self,check_pos: (usize,usize), chess_board:[[Option<Meeple>;8];8]) -> bool {
+    fn pos_is_none(&self,check_pos: (usize,usize), chess_board:&[[Option<Meeple>;8];8]) -> bool {
         match get_meeple_at(chess_board,check_pos) {
             None => true,
             _ => false,
@@ -252,7 +253,7 @@ impl Meeple {
     }
 
     ///returns if check_pos is the opposite color of the meeple
-    fn pos_is_opposite_color(&self,check_pos: (usize,usize), chess_board:[[Option<Meeple>;8];8]) -> bool {
+    fn pos_is_opposite_color(&self,check_pos: (usize,usize), chess_board:&[[Option<Meeple>;8];8]) -> bool {
         match get_meeple_at(chess_board,check_pos) {
             Some(meeple) => if meeple.color != self.color {true} else {false},
             _ => false,
@@ -260,7 +261,7 @@ impl Meeple {
     }
 
     ///returns if check_pos is the color of the meeple
-    fn pos_is_same_color(&self,check_pos: (usize,usize), chess_board:[[Option<Meeple>;8];8]) -> bool {
+    fn pos_is_same_color(&self,check_pos: (usize,usize), chess_board:&[[Option<Meeple>;8];8]) -> bool {
         match get_meeple_at(chess_board,check_pos) {
             Some(meeple) => if meeple.color == self.color {true} else {false},
             _ => false,
@@ -268,7 +269,7 @@ impl Meeple {
     }
 
     ///returns if the position is None or the opposite color of the meeple
-    fn pos_is_opposite_color_or_none(&self,check_pos: (usize,usize), chess_board:[[Option<Meeple>;8];8]) -> bool {
+    fn pos_is_opposite_color_or_none(&self,check_pos: (usize,usize), chess_board:&[[Option<Meeple>;8];8]) -> bool {
         match get_meeple_at(chess_board,check_pos) {
             Some(meeple) => if meeple.color != self.color {true} else {false},
             None => true,
@@ -277,6 +278,6 @@ impl Meeple {
 }
 
 ///only to look up what meeple is where (not mutable)
-pub fn get_meeple_at(chess_board:[[Option<Meeple>;8];8],(x,y): (usize,usize)) -> Option<Meeple>{
+pub fn get_meeple_at(chess_board:&[[Option<Meeple>;8];8],(x,y): (usize,usize)) -> Option<Meeple>{
     chess_board[x] [y]
 }
