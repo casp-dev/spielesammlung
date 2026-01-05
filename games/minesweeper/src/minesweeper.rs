@@ -126,15 +126,24 @@ pub fn flag(game: &mut Game, action_kind: &ActionKind) {
 #[allow(unused_parens)]
 pub fn open(game: &mut Game, action_kind: &ActionKind) {
     if let ActionKind::Open(x, y) = action_kind {
+        if game.board[*y][*x].cell_state == CellState::Opened {
+        return;
+        }
+
         if let CellContent::Number(_) = game.board[*y][*x].cell_content {
             game.board[*y][*x].cell_state = CellState::Opened;
+            game.opened_counter += 1;
         }
+
         if (game.board[*y][*x].cell_content == CellContent::Blank) {
             game.board[*y][*x].cell_state = CellState::Opened;
+            game.opened_counter += 1;
             flood_fill(game, &y, &x);
         }
+        
         if (game.board[*y][*x].cell_content == CellContent::Mine) {
             game.board[*y][*x].cell_state = CellState::Opened;
+            game.opened_counter += 1;
             boom(game);
         }
     }
@@ -232,7 +241,7 @@ pub fn set_blancs_and_numbers(game: &mut Game) {
 #[derive(Clone, PartialEq, Debug, Eq)]
 pub struct Game {
     board: Vec<Vec<Cell>>,
-    action_counter: usize, // future win condition
+    opened_counter: usize,
     mine_count: usize,
     flag_count: usize, // TODO: if flag_count reaches 0 all unflagged Cells will be revealed. You have as many flags as there are mines on the board
     game_over: bool,
@@ -290,7 +299,7 @@ impl Minesweeper for Game {
         }
         let mut game = Game {
             board: board,
-            action_counter: 0, // NOT USED YET
+            opened_counter: 0,
             mine_count: mine_count,
             flag_count: mine_count,
             game_over: false,
@@ -320,6 +329,16 @@ impl Minesweeper for Game {
     }
 
     fn winner(&self) -> bool {
-        unimplemented!()
+        if(self.game_over == true) {
+            return false;
+        }
+
+        let total_cells = self.board.len() * self.board[0].len();
+        let safe_cells = total_cells - self.mine_count;
+
+        if (self.opened_counter == safe_cells) {
+            return true;
+        }
+        return false
     }
 }
