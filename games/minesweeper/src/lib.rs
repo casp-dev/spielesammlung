@@ -1,5 +1,6 @@
 use egui::Ui;
 use game_core::Game;
+pub mod minesweeper;
 
 pub struct MinesweeperGame {
     state: String,

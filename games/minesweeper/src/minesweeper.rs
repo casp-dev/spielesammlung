@@ -32,7 +32,7 @@ pub enum CellContent {
 pub type X = usize;
 pub type Y = usize;
 
-#[derive(Clone, PartialEq, Debug, Eq, Copy)] // For Future: x,y instead of CellNumber
+#[derive(Clone, PartialEq, Debug, Eq, Copy)]
 pub enum ActionKind {
     Flag(X, Y), // No "unflag" just use Flag as a switch
     Open(X, Y),
@@ -54,7 +54,6 @@ pub struct Cell {
 
 #[allow(unused_parens)]
 pub fn is_on_board(game: &Game, action_kind: &ActionKind) -> bool {
-    // change to y,x in the future
     let (x, y) = match action_kind {
         ActionKind::Open(x, y) => (*x, *y),
         ActionKind::Flag(x, y) => (*x, *y),
@@ -155,10 +154,6 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
         for dx in -1..=1 {
             if dx == 0 && dy == 0 {
                 continue;
-            }
-
-            if (game.board[*y][*x].cell_state == CellState::Opened) {
-                return;
             }
 
             let nx = *x as isize + dx;
