@@ -26,11 +26,22 @@ impl Board {
             grid: vec![None; size * size],
         }
     }
+
+    pub fn get(&self, x: usize, y: usize) -> Option<Stone> {
+        if x < self.size && y < self.size {
+            self.grid[y * self.size + x]
+        } else {
+            None
+        }
+    }
 }
 
 pub struct Game {
     pub board: Board,
     pub current_turn: Stone,
+    pub captured_black: usize,
+    pub captured_white: usize,
+    pub game_over: bool,
 }
 
 impl Game {
@@ -38,18 +49,25 @@ impl Game {
         Self {
             board: Board::new(size),
             current_turn: Stone::Black,
+            captured_black: 0,
+            captured_white: 0,
+            game_over: false,
         }
     }
-    pub fn place_stone() {
+    pub fn place_stone(&mut self, _x: usize, _y: usize) -> Result<(), String> {
+        //todo: implement logic
+        // For now just toggle turn
+        self.current_turn = self.current_turn.other();
+        Ok(())
+    }
+    pub fn pass(&mut self) {
+        self.current_turn = self.current_turn.other();
+    }
+    pub fn get_valid_moves(&self) {
         //todo
     }
-    pub fn pass() {
+    pub fn calculate_score(&self) -> (f32, f32) {
         //todo
-    }
-    pub fn get_valid_moves() {
-        //todo
-    }
-    pub fn get_winner() {
-        //todo
+        (0.0, 0.0)
     }
 }
