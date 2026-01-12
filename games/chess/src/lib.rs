@@ -1,10 +1,11 @@
-use std::{thread::{self, sleep}, time::Duration, usize};
+use std::{hash::Hash, thread::{self, sleep}, time::Duration, usize};
 
-use egui::Ui;
+use egui::{Ui, ahash::HashMap};
 use game_core::Game;
 
 mod meeples;
-use crate::{draw::draw_board, meeples::{Color, Meeple, Type, opposite_color}};
+mod engine;
+use crate::{draw::draw_board, meeples::{Color, Meeple, Type, opposite_color}, engine::{Engine, calculate_board}};
 //als nächtest evaluation, multiplayer und engine
 mod draw;
 //performance: moves woanders, im heap mehr zeug speichern, stack vergrößern und alles in neuem thread dafür tun
@@ -17,6 +18,7 @@ pub struct ChessGame {
     clicked_meeple: (usize,usize),
     turn: Color,
     pawn_mutate: bool,
+    engine: Option<Engine>,
 }
 
 impl ChessGame {
@@ -37,7 +39,7 @@ impl ChessGame {
             }
         }
         let possible_moves_ = create_basic_possible_moves();
-        Self {state: state_,game_board: chess_board, possible_moves: possible_moves_, shown_moves: None,logs: logs_, clicked_meeple: (42,42),turn: turn_,pawn_mutate: false}
+        Self {state: state_,game_board: chess_board, possible_moves: possible_moves_, shown_moves: None,logs: logs_, clicked_meeple: (42,42),turn: turn_,pawn_mutate: false, engine: Some(Engine::new(1, Color::Black)) }
     }
     
     fn create_special_line(cords: (usize,usize),color: Color) -> Meeple {
@@ -71,8 +73,8 @@ impl ChessGame {
         self.shown_moves = Default::default();
         self.check_pawn_mutate(scnd); 
         self.turn = opposite_color(self.turn);
-        self.possible_moves = self.get_all_possible_moves(); 
-        println!("{}",calculate_board(self.game_board));
+        self.get_all_possible_moves();
+        self.move_engine();
     }  
 
     fn check_casteling(&self, frst_pos: (usize,usize), scnd_pos: (usize,usize)) -> bool {
@@ -126,44 +128,49 @@ impl ChessGame {
                 Type::Knight => 3.0,
                 _ => panic!("This should not happen"),
             };
-            println!("he changed");
         }
         self.pawn_mutate = false;
+        self.move_engine();
     }
-    
-    fn get_all_possible_moves(&mut self) -> [[Option<Vec<(usize,usize)>>;8];8] {
-        let mut chess_board = self.game_board.clone();
-        let turn = self.turn.clone();
-        let last_move = self.logs.last().unwrap().clone();
-        let handle= thread::spawn(move || {
-            get_all_possible_moves(&mut chess_board,turn,&last_move)
-        });
-        handle.join().unwrap() 
+
+    fn move_engine(&mut self) {
+        if let Some(bot) = self.engine {
+            if bot.color == self.turn  && self.pawn_mutate == false {
+                let bot_move = bot.move_move(&mut self.game_board, &self.logs.last().unwrap(), self.turn,&self.possible_moves);
+                if bot_move == ((42,42),(42,42)) {
+                    println!("{:?} hat gewonnen", opposite_color(self.turn));
+                } else {
+                    self.show_moves(bot_move.0);
+                    self.move_meeple(bot_move.1);
+                }
+            }
+        }
+    }
+
+    fn get_all_possible_moves(&mut self) {
+        let mut ret_vec:[[Option<Vec<(usize,usize)>>;8];8] = Default::default();
+        let mut colores = get_meeples_from_color(&self.game_board, self.turn);
+        let king = colores.0.last().unwrap().pos;
+        let mut can_move = false;
+        for colored_meeple in colores.0 {
+            let can_hit = check_meeple_moves_valid(&mut self.game_board,&self.logs.last().unwrap(),&colored_meeple,&mut colores.1,king);
+            if !can_hit.is_empty()  {
+                can_move = true;
+            }
+            ret_vec[colored_meeple.pos.0] [colored_meeple.pos.1] = Some(can_hit);
+        }
+
+        if !can_move {
+            print!("Schachmatt! ");
+            println!("{:?} hat gewonnen", opposite_color(self.turn));
+        }
+        self.possible_moves = ret_vec.clone();
     }
 }
 
 fn walk_and_replace(frst: (usize,usize), scnd: (usize,usize),chess_board: &mut [[Option<Meeple>;8];8]) {
     chess_board[scnd.0] [scnd.1] = chess_board[frst.0] [frst.1].take();
     chess_board[scnd.0] [scnd.1].as_mut().unwrap().pos =scnd;
-}
-
-fn get_all_possible_moves(chess_board: &mut [[Option<Meeple>;8];8],turn: Color,last_move: &((usize,usize),(usize,usize))) -> [[Option<Vec<(usize,usize)>>;8];8] {
-    let mut ret_vec:[[Option<Vec<(usize,usize)>>;8];8] = Default::default();
-    let mut colores = get_meeples_from_color(&chess_board, turn);
-    let king = colores.0.last().unwrap().pos;
-    let mut can_move = false;
-    for colored_meeple in colores.0 {
-        let can_hit = check_meeple_moves_valid(chess_board,last_move,&colored_meeple,&mut colores.1,king);
-        if !can_move && can_hit.is_empty()  {
-            can_move = true;
-        }
-        ret_vec[colored_meeple.pos.0] [colored_meeple.pos.1] = Some(can_hit);
-    }
-
-    if !can_move {
-        println!("jmd hat gewonnen");
-    }
-    ret_vec
 }
 
 fn check_meeple_moves_valid(chess_board: &mut [[Option<Meeple>;8];8],last_move: &((usize,usize),(usize,usize)),meeple: &Meeple,check_color: &mut Vec<Meeple>,king: (usize,usize)) -> Vec<(usize,usize)>{
@@ -250,36 +257,6 @@ pub fn get_meeples_from_color(chess_board:&[[Option<Meeple>;8];8],color_at_0: Co
     ret_vec.0.append(&mut kings.0);
     ret_vec.1.append(&mut kings.1);
     ret_vec
-}
-
-pub fn calculate_board(chess_board:[[Option<Meeple>;8];8]) -> f32 {
-    let mut total_score = 0.0;
-    for col in chess_board {
-        for opt_meeple in col {
-            if let Some(meeple) = opt_meeple {
-                if meeple.color == Color::White {
-                    total_score += calculate_meeple_positon(meeple.value,meeple.pos);
-                    total_score += meeple.value;
-                } else {
-                    total_score -= calculate_meeple_positon(meeple.value+0.1,meeple.pos);
-                    total_score -= meeple.value;
-                }
-            }
-        }
-    }
-    total_score
-}
-
-fn calculate_meeple_positon(value: f32,pos: (usize,usize)) -> f32{
-    let pos_array = match value {
-        0.1 => [[0.5, 0.2, 0.0, 0.0, -0.1, -0.2, -0.3, -0.3],[0.4, 0.2, 0.0, 0.0, 0.0, -0.1, -0.2, -0.2],[0.1, 0.1, 0.1, 0.0, 0.0, 0.0, -0.1, -0.1],[0.2, 0.1, 0.0, 0.0, 0.0, 0.0, -0.1, -0.1],
-        [0.2, 0.1, 0.0, 0.0, 0.0, 0.0, -0.1, -0.1],[0.1, 0.1, 0.1, 0.0, 0.0, 0.0, -0.1, -0.1],[0.4, 0.2, 0.0, 0.0, 0.0, -0.1, -0.2, -0.2],[0.5, 0.2, 0.0, 0.0, -0.1, -0.2, -0.3, -0.3]],
-        0.0 => [[-0.3,-0.3,-0.2,-0.1,0.0,0.0,0.2,0.5],[-0.2,-0.2,-0.1,0.0,0.0,0.0,0.2,0.4],[-0.1,-0.1,0.0,0.0,0.0,0.1,0.1,0.1],[-0.1,-0.1,0.0,0.0,0.0,0.0,0.1,0.2],
-        [-0.1,-0.1,0.0,0.0,0.0,0.0,0.1,0.2],[-0.1,-0.1,0.0,0.0,0.0,0.1,0.1,0.1],[-0.2,-0.2,-0.1,0.0,0.0,0.0,0.2,0.4],[-0.3,-0.3,-0.2,-0.1,0.0,0.0,0.2,0.5]],
-        _ => [[-0.5,-0.4,-0.3,-0.2,-0.2,-0.3,-0.4,-0.5],[-0.3,-0.2,-0.1,-0.1,-0.1,-0.1,-0.2,-0.3],[0.0,0.0,0.1,0.2,0.2,0.1,0.0,0.0],[0.2,0.3,0.4,0.5,0.5,0.4,0.3,0.2],
-        [0.2,0.3,0.4,0.5,0.5,0.4,0.3,0.2],[0.0,0.0,0.1,0.2,0.2,0.1,0.0,0.0],[-0.3,-0.2,-0.1,-0.1,-0.1,-0.1,-0.2,-0.3],[-0.5,-0.4,-0.3,-0.2,-0.2,-0.3,-0.4,-0.5]],
-    };
-    pos_array[pos.0] [pos.1]
 }
 
 impl Game for ChessGame {
