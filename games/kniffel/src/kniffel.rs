@@ -82,7 +82,7 @@ pub trait YahtzeeGame {
     #[allow(clippy::new_ret_no_self)]
     fn new(number: usize) -> Result<Game, &'static str>;
 
-    fn winner(&self) -> Result<(usize, usize), &'static str>;
+    fn winner(&self) -> Result<(Vec<usize>, usize), &'static str>;
 }
 
 impl YahtzeeGame for Game {
@@ -101,20 +101,28 @@ impl YahtzeeGame for Game {
     }
 
     // return: (player_index, total_points)
-    fn winner(&self) -> Result<(usize, usize), &'static str> {
+    fn winner(&self) -> Result<(Vec<usize>, usize), &'static str> {
         for _ in 0..self.number_of_players {
             if !point_table_full(self) {
                 return Err("Noch kein Gewinner");
             }
         }
         let mut max_points = 0;
-        let mut winner_index = 0;
+        let mut winner_index = Vec::new();
         for index_player in 0..self.number_of_players {
             if self.all_players[index_player].point_table.total_points[3] > max_points {
                 max_points = self.all_players[index_player].point_table.total_points[3];
-                winner_index = index_player;
+                winner_index.push(index_player);
             }
         }
+        if winner_index[0] < self.number_of_players - 1 {
+            for index_player in winner_index[0]..self.number_of_players {
+                if self.all_players[index_player].point_table.total_points[3] == max_points {
+                    winner_index.push(index_player);
+                }
+            }
+        }
+
         Ok((winner_index, max_points.into()))
     }
 }

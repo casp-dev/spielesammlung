@@ -213,8 +213,7 @@ impl KniffelGame {
         //sichtbar sobald Punktetabelle voll ist
         
         if point_table_full(&self.game) {
-            let winner_tuple = self.game.winner().unwrap();
-            ui.label(format!("Der Gewinner mit {} Punkten ist Spieler {}", winner_tuple.1, (winner_tuple.0)+1));
+            self.display_winner(ui);
         }
     }
 }
@@ -300,6 +299,16 @@ impl KniffelGame {
             if dice_button.clicked() {
                 self.game = change_blocked_status_dice(&mut self.game, dice_index).clone();
             }
+        }
+    }
+
+    fn display_winner(&mut self, ui:&mut egui::Ui) {
+        let winner_tuple = self.game.winner().unwrap();
+        if winner_tuple.0.len() == 1 {
+            ui.label(format!("Der Gewinner mit {} Punkten ist Spieler {}", winner_tuple.1, (winner_tuple.0[0])+1));
+        }
+        else {
+            ui.label(format!("Gleichstand zwischen Spielern {:?}, mit {} Punkten", winner_tuple.0, winner_tuple.1));
         }
     }
 }
