@@ -386,9 +386,10 @@ mod tests {
                 all_players: vec![Player::new(), Player::new()],
                 current_player: Player {
                     point_table: PointTable::new(),
-                    number_of_throws: 1,
+                    number_of_throws: 0,
                     dice_throw: [Dice::new(0); 5],
                 },
+                current_player_index: 0,
                 number_of_players: 2,
             }
         };
