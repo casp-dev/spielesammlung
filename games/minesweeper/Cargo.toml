@@ -7,3 +7,4 @@ edition = "2021"
 rand = "0.8"
 game_core = { path = "../../game_core" }
 egui = "0.29.1"
+eframe = "0.29.1"
