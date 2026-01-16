@@ -1,11 +1,12 @@
-use crate::minesweeper::{ActionKind, Difficulty, CellContent, CellState, Game as MSGame, Minesweeper};
+use crate::minesweeper::{
+    ActionKind, CellContent, CellState, Difficulty, Game as MSGame, Minesweeper,
+};
 use egui::{Color32, RichText, Ui, Vec2};
 use game_core::Game;
 
 pub enum GameState {
     ChoosingDifficulty,
     Playing(MSGame),
-    // Winner Screen and go back to ChoosingDifficulty
 }
 
 pub fn color_for_mines_nearby(i: u8) -> Color32 {
@@ -17,9 +18,10 @@ pub fn color_for_mines_nearby(i: u8) -> Color32 {
     }
 }
 
-pub fn colors(n: u8) -> Color32 { // Not finished
+pub fn colors(n: u8) -> Color32 {
+    // Not finished
     match n {
-        _ => Color32::BLACK
+        _ => Color32::BLACK,
     }
 }
 
@@ -91,52 +93,80 @@ impl Game for MinesweeperGame {
             }
 
             GameState::Playing(game) => {
-                let height = game.board.len(); // Y
-                                               // Y
-                                               // Y
-                let width = game.board[0].len(); // XXXXXXX
+
+                let height = game.board.len();
+                let width = game.board[0].len();
 
                 ui.vertical_centered(|ui| {
                     for y in 0..height {
                         ui.horizontal(|ui| {
                             for x in 0..width {
+                                if (game.board[y][x].cell_state == CellState::Unopened) {
+                                    // unopened Cell
+                                    let button =
+                                        egui::Button::new("").min_size(Vec2::new(25.0, 25.0));
+                                    let click_or_flag = ui.add(button);
+                                    if click_or_flag.clicked() {
+                                        MSGame::apply_action(game, ActionKind::Open(x, y));
+                                        println!("Opened cell {}:{}", x, y);
+                                    }
+                                    if click_or_flag.secondary_clicked() {
+                                        MSGame::apply_action(game, ActionKind::Flag(x, y));
+                                        println!("Flaged cell {}:{}", x, y);
+                                    }
+                                }
 
-                                if (game.board[y][x].cell_state == CellState::Unopened) {  // unopened Cell
-                                let button = egui::Button::new("")
-                                    .min_size(Vec2::new(25.0, 25.0));
-                                let click_or_flag = ui.add(button);
-                                if click_or_flag.clicked() {
-                                    MSGame::apply_action(game, ActionKind::Open(x, y));
-                                    println!("Opened cell {}/{}", x, y);
-                                }
-                                if click_or_flag.secondary_clicked() {
-                                    MSGame::apply_action(game, ActionKind::Flag(x, y));
-                                    println!("Flaged cell {}:{}", x, y);
-                                }
-                                }
-
-                                if (game.board[y][x].cell_state == CellState::Opened) { // Opened Cell
+                                if (game.board[y][x].cell_state == CellState::Opened) {
+                                    // Opened Cell
                                     let (text, color) = match game.board[y][x].cell_content {
                                         CellContent::Blank => ("".to_string(), Color32::DARK_GRAY),
                                         CellContent::Mine => ("💣".to_string(), Color32::BLACK),
-                                        CellContent::Number(i) => (i.to_string(), color_for_mines_nearby(i)),
+                                        CellContent::Number(i) => {
+                                            (i.to_string(), color_for_mines_nearby(i))
+                                        }
                                     };
-                                    let button = egui::Button::new(text).fill(color)
-                                    .min_size(Vec2::new(25.0, 25.0));
+                                    let button = egui::Button::new(text)
+                                        .fill(color)
+                                        .min_size(Vec2::new(25.0, 25.0));
                                     ui.add(button);
                                 }
 
-                                if (game.board[y][x].cell_state == CellState::Flagged) {  // Flagged Cell
-                                let button = egui::Button::new("🚩")
-                                    .min_size(Vec2::new(25.0, 25.0));
-                                let unflag = ui.add(button);
-                                if unflag.secondary_clicked() {
-                                    MSGame::apply_action(game, ActionKind::Flag(x, y));
-                                    println!("Unflaged cell {}:{}", x, y);
-                                }}
+                                if (game.board[y][x].cell_state == CellState::Flagged) {
+                                    // Flagged Cell
+                                    let button =
+                                        egui::Button::new("🚩").min_size(Vec2::new(25.0, 25.0));
+                                    let unflag = ui.add(button);
+                                    if unflag.secondary_clicked() {
+                                        MSGame::apply_action(game, ActionKind::Flag(x, y));
+                                        println!("Unflaged cell {}:{}", x, y);
+                                    }
+                                }
                             }
                         });
                     }
+
+                    // NOT FINISHED 
+                    ui.horizontal_centered(|ui| {
+                        let flags_remaining_to_string =
+                            format!("Flaggen übrig: {}", game.flag_count.to_string());
+                        let text_flags_remaining = RichText::new(flags_remaining_to_string)
+                            .size(20.0)
+                            .color(Color32::WHITE);
+                        let button_flags_remaining = egui::Button::new(text_flags_remaining)
+                            .min_size(Vec2::new(120.0, 50.0))
+                            .fill(Color32::from_rgb(80, 0, 80));
+                        ui.add(button_flags_remaining);
+
+                        let bombs_on_field_to_string =
+                            format!("Minen auf dem Feld: {}", game.mine_count.to_string());
+                        let text_bombs_on_field = RichText::new(bombs_on_field_to_string)
+                            .size(20.0)
+                            .color(Color32::WHITE);
+                        let button_bombs_on_field = egui::Button::new(text_bombs_on_field)
+                            .min_size(Vec2::new(120.0, 50.0))
+                            .fill(Color32::from_rgb(80, 0, 80));
+                        ui.add(button_bombs_on_field);
+                    });
                 });
             }
         }

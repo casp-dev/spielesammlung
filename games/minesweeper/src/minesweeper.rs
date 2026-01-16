@@ -1,5 +1,4 @@
 // contains the and game logic for minesweeper
-
 /*
 Rules: (via: https://en.wikipedia.org/wiki/Minesweeper_(video_game))
 
@@ -182,9 +181,26 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
     }
 }
 
+#[allow(unused_parens)]
+pub fn reveal_bombs(game: &mut Game) {
+
+    let height = game.board.len();
+    let width = game.board[0].len();
+
+    for y in 0..height {
+        for x in 0..width {
+            if(game.board[y][x].cell_content == CellContent::Mine) {
+                game.board[y][x].cell_state = CellState::Opened;
+            }
+        }
+    }
+}
+
 pub fn boom(game: &mut Game) -> bool {
     game.game_over = true;
     game.game_won = false;
+
+    reveal_bombs(game);
 
     return game.game_over;
 }
@@ -240,16 +256,15 @@ pub struct Game {
     pub board: Vec<Vec<Cell>>,
     pub opened_counter: usize,
     pub mine_count: usize,
-    pub flag_count: usize, // TODO: if flag_count reaches 0 all unflagged Cells will be revealed. You have as many flags as there are mines on the board
+    pub flag_count: usize,
     pub game_over: bool,
-    pub game_won: bool, // unused
+    pub game_won: bool,
 }
 
 pub trait Minesweeper {
     fn new_game(difficulty: Difficulty) -> Self;
     fn apply_action(&mut self, action_kind: ActionKind) -> Result<(), &'static str>;
-    fn winner(&self) -> bool;
-    // TODO: game lock in case of boom!....
+    fn winner(&mut self) -> bool;
 }
 
 #[allow(unused_parens)]
@@ -278,19 +293,17 @@ impl Minesweeper for Game {
                 (vec![vec![default_cell; 30]; 16], 99) // 30x16, 99 Mines
             }
         };
-        let column = board[0].len(); // XXXX
+        let column = board[0].len(); // X
         let rows = board.len(); // Y
-                                //                                Y
-                                //                                Y
-                                //                                Y
+
         let cell_count = column * rows;
         let mut no_dupes: Vec<usize> = Vec::new();
         while (no_dupes.len() < mine_count) {
             let random_number = rand::thread_rng().gen_range(0..cell_count);
             if !(no_dupes.contains(&random_number)) {
                 no_dupes.push(random_number);
-                let y = random_number / column; // Y-Value
-                let x = random_number % column; // X-Value
+                let y = random_number / column;
+                let x = random_number % column;
                 board[y][x].cell_content = CellContent::Mine;
             }
         }
@@ -316,16 +329,24 @@ impl Minesweeper for Game {
         match action_kind {
             ActionKind::Open(_, _) => {
                 open(self, &action_kind);
+                self.winner();
+                if(self.game_won == true) {
+                    reveal_bombs(self);
+                }
                 Ok(())
             }
             ActionKind::Flag(_, _) => {
                 flag(self, &action_kind);
+                self.winner();
+                if(self.game_won == true) {
+                    reveal_bombs(self);
+                }
                 Ok(())
             }
         }
     }
 
-    fn winner(&self) -> bool {
+    fn winner(&mut self) -> bool {
         if (self.game_over == true) {
             return false;
         }
@@ -334,6 +355,7 @@ impl Minesweeper for Game {
         let safe_cells = total_cells - self.mine_count;
 
         if (self.opened_counter == safe_cells) {
+            self.game_won = true;
             return true;
         }
         return false;

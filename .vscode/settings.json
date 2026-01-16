@@ -1,0 +1,12 @@
+{
+  // Disable GitHub Copilot inline completions (ghost text) in this workspace
+  "github.copilot.inlineSuggest.enable": false,
+
+  // Disable Copilot completions for all languages in this workspace
+  "github.copilot.enable": {
+    "*": false
+  },
+
+  // Also disable VS Code's generic inline suggestions (does not affect normal IntelliSense popup)
+  "editor.inlineSuggest.enabled": false
+}
