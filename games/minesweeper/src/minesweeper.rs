@@ -1,5 +1,4 @@
-// contains the  and game logic for minesweeper
-
+// contains the and game logic for minesweeper
 /*
 Rules: (via: https://en.wikipedia.org/wiki/Minesweeper_(video_game))
 
@@ -9,6 +8,10 @@ A player selects a cell to open it. If a player opens a mined cell, the game end
 
 In some versions of the game when the number of adjacent mines is equal to the number of adjacent flagged cells, all adjacent non-flagged unopened cells will be opened, a process known as chording.
 */
+
+// TODO: bombe verschieben
+// BUG: wenn flage im Bereich ist der mit Flood fill geöffnet wird ist die flagge WEG
+//...
 
 #![allow(unused_variables)]
 #![allow(dead_code)]
@@ -32,7 +35,7 @@ pub enum CellContent {
 pub type X = usize;
 pub type Y = usize;
 
-#[derive(Clone, PartialEq, Debug, Eq, Copy)] // For Future: x,y instead of CellNumber
+#[derive(Clone, PartialEq, Debug, Eq, Copy)]
 pub enum ActionKind {
     Flag(X, Y), // No "unflag" just use Flag as a switch
     Open(X, Y),
@@ -48,13 +51,12 @@ pub enum Difficulty {
 
 #[derive(Clone, PartialEq, Debug, Eq, Copy)]
 pub struct Cell {
-    cell_state: CellState,
-    cell_content: CellContent,
+    pub cell_state: CellState,
+    pub cell_content: CellContent,
 }
 
 #[allow(unused_parens)]
 pub fn is_on_board(game: &Game, action_kind: &ActionKind) -> bool {
-    // change to y,x in the future
     let (x, y) = match action_kind {
         ActionKind::Open(x, y) => (*x, *y),
         ActionKind::Flag(x, y) => (*x, *y),
@@ -95,11 +97,11 @@ pub fn open_allowed(game: &Game, action_kind: &ActionKind) -> bool {
 
 #[allow(unused_parens)]
 pub fn is_action_allowed(game: &Game, action_kind: &ActionKind) -> bool {
-    if(game.game_over == true) {
+    if (game.game_over == true) {
         return false;
     }
-    if(game.game_won == true) {
-    return false;
+    if (game.game_won == true) {
+        return false;
     }
     match action_kind {
         ActionKind::Open(_, _) => open_allowed(game, action_kind),
@@ -111,8 +113,10 @@ pub fn is_action_allowed(game: &Game, action_kind: &ActionKind) -> bool {
 pub fn flag(game: &mut Game, action_kind: &ActionKind) {
     if let ActionKind::Flag(x, y) = action_kind {
         if (game.board[*y][*x].cell_state == CellState::Unopened) {
-            game.board[*y][*x].cell_state = CellState::Flagged;
-            game.flag_count = game.flag_count - 1;
+            if (game.flag_count > 0) {
+                game.board[*y][*x].cell_state = CellState::Flagged;
+                game.flag_count = game.flag_count - 1;
+            }
             return;
         }
         if (game.board[*y][*x].cell_state == CellState::Flagged) {
@@ -126,15 +130,24 @@ pub fn flag(game: &mut Game, action_kind: &ActionKind) {
 #[allow(unused_parens)]
 pub fn open(game: &mut Game, action_kind: &ActionKind) {
     if let ActionKind::Open(x, y) = action_kind {
+        if game.board[*y][*x].cell_state == CellState::Opened {
+            return;
+        }
+
         if let CellContent::Number(_) = game.board[*y][*x].cell_content {
             game.board[*y][*x].cell_state = CellState::Opened;
+            game.opened_counter += 1;
         }
+
         if (game.board[*y][*x].cell_content == CellContent::Blank) {
             game.board[*y][*x].cell_state = CellState::Opened;
+            game.opened_counter += 1;
             flood_fill(game, &y, &x);
         }
+
         if (game.board[*y][*x].cell_content == CellContent::Mine) {
             game.board[*y][*x].cell_state = CellState::Opened;
+            game.opened_counter += 1;
             boom(game);
         }
     }
@@ -148,10 +161,6 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
                 continue;
             }
 
-            if (game.board[*y][*x].cell_state == CellState::Opened) {
-                return;
-            }
-
             let nx = *x as isize + dx;
             let ny = *y as isize + dy;
 
@@ -159,11 +168,11 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
                 let nx = nx as usize;
                 let ny = ny as usize;
 
-                if (game.board[ny][nx].cell_state == CellState::Opened) {
-                    continue;
-                }
-
                 if ny < game.board.len() && nx < game.board[0].len() {
+                    if (game.board[ny][nx].cell_state == CellState::Opened) {
+                        continue;
+                    }
+
                     if let CellContent::Number(_) = game.board[ny][nx].cell_content {
                         open(game, &ActionKind::Open((nx), (ny)));
                     }
@@ -176,10 +185,26 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
     }
 }
 
+#[allow(unused_parens)]
+pub fn reveal_bombs(game: &mut Game) {
+    let height = game.board.len();
+    let width = game.board[0].len();
+
+    for y in 0..height {
+        for x in 0..width {
+            if (game.board[y][x].cell_content == CellContent::Mine) {
+                game.board[y][x].cell_state = CellState::Opened;
+            }
+        }
+    }
+}
+
 pub fn boom(game: &mut Game) -> bool {
     game.game_over = true;
     game.game_won = false;
-    
+
+    reveal_bombs(game);
+
     return game.game_over;
 }
 
@@ -231,25 +256,23 @@ pub fn set_blancs_and_numbers(game: &mut Game) {
 
 #[derive(Clone, PartialEq, Debug, Eq)]
 pub struct Game {
-    board: Vec<Vec<Cell>>,
-    action_counter: usize, // future win condition
-    mine_count: usize,
-    flag_count: usize, // TODO: if flag_count reaches 0 all unflagged Cells will be revealed. You have as many flags as there are mines on the board
-    game_over: bool,
-    game_won: bool, // unused
+    pub board: Vec<Vec<Cell>>,
+    pub opened_counter: usize,
+    pub mine_count: usize,
+    pub flag_count: usize,
+    pub game_over: bool,
+    pub game_won: bool,
 }
 
 pub trait Minesweeper {
     fn new_game(difficulty: Difficulty) -> Self;
     fn apply_action(&mut self, action_kind: ActionKind) -> Result<(), &'static str>;
-    fn winner(&self) -> bool;
-    // TODO: game lock in case of boom!....
+    fn winner(&mut self) -> bool;
 }
 
 #[allow(unused_parens)]
 impl Minesweeper for Game {
     fn new_game(difficulty: Difficulty) -> Self {
-        // For the Future: First Clicked Cell cant be a Mine -> move Mine after initial board creation if needed
         let default_cell = Cell {
             cell_content: CellContent::Blank,
             cell_state: CellState::Unopened,
@@ -272,25 +295,23 @@ impl Minesweeper for Game {
                 (vec![vec![default_cell; 30]; 16], 99) // 30x16, 99 Mines
             }
         };
-        let column = board[0].len(); // XXXX
+        let column = board[0].len(); // X
         let rows = board.len(); // Y
-        //                                Y
-        //                                Y
-        //                                Y
+
         let cell_count = column * rows;
         let mut no_dupes: Vec<usize> = Vec::new();
         while (no_dupes.len() < mine_count) {
             let random_number = rand::thread_rng().gen_range(0..cell_count);
             if !(no_dupes.contains(&random_number)) {
                 no_dupes.push(random_number);
-                let y = random_number / column; // Y-Value
-                let x = random_number % column; // X-Value
+                let y = random_number / column;
+                let x = random_number % column;
                 board[y][x].cell_content = CellContent::Mine;
             }
         }
         let mut game = Game {
             board: board,
-            action_counter: 0, // NOT USED YET
+            opened_counter: 0,
             mine_count: mine_count,
             flag_count: mine_count,
             game_over: false,
@@ -302,7 +323,7 @@ impl Minesweeper for Game {
         return game;
     }
 
-        fn apply_action(&mut self, action_kind: ActionKind) -> Result<(), &'static str> {
+    fn apply_action(&mut self, action_kind: ActionKind) -> Result<(), &'static str> {
         if !(is_action_allowed(&self, &action_kind)) {
             return Err("Action not Allowed");
         }
@@ -310,16 +331,35 @@ impl Minesweeper for Game {
         match action_kind {
             ActionKind::Open(_, _) => {
                 open(self, &action_kind);
+                self.winner();
+                if (self.game_won == true) {
+                    reveal_bombs(self);
+                }
                 Ok(())
             }
             ActionKind::Flag(_, _) => {
                 flag(self, &action_kind);
+                self.winner();
+                if (self.game_won == true) {
+                    reveal_bombs(self);
+                }
                 Ok(())
             }
         }
     }
 
-    fn winner(&self) -> bool {
-        unimplemented!()
+    fn winner(&mut self) -> bool {
+        if (self.game_over == true) {
+            return false;
+        }
+
+        let total_cells = self.board.len() * self.board[0].len();
+        let safe_cells = total_cells - self.mine_count;
+
+        if (self.opened_counter == safe_cells) {
+            self.game_won = true;
+            return true;
+        }
+        return false;
     }
 }
