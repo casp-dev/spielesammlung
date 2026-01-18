@@ -1,9 +1,7 @@
 use std::thread;
 use std::time::Instant;
 
-use egui::epaint::color;
-
-use crate::meeples::{self, opposite_color, Color, Meeple, Type};
+use crate::meeples::{ opposite_color, Color, Meeple, Type};
 #[derive(Clone, Copy)]
 pub struct Engine {
     pub level: u16,
@@ -23,7 +21,6 @@ impl Engine {
         chess_board: &mut [[Option<Meeple>; 8]; 8],
         last_move: &((usize, usize), (usize, usize)),
         turn: Color,
-        possible_moves: &[[Option<Vec<(usize, usize)>>; 8]; 8],
     ) -> ((usize, usize), (usize, usize)) {
         let chess_board_t = chess_board.clone();
         let turn_t = turn;
@@ -70,7 +67,7 @@ fn get_best_move_black(
     //it is runcolores turn and incolor is the opponent
     let mut best_move: Option<((usize, usize), (usize, usize), f32)> = None;
     for colored_meeple in turn_meeples.iter() {
-        for check_meep in colored_meeple.show_moves(&chess_board, &last_move) {
+        for check_meep in colored_meeple.show_moves(&chess_board, &last_move,&opposite_turn_meeples) {
             let mut chess_board_clone = chess_board.clone();
             let from_pos = colored_meeple.pos;
             let to_pos = check_meep;
@@ -99,7 +96,7 @@ fn get_best_move_black(
             let mut legal_move = true;
             for check_meeple in opposite_turn_meeples_clone.iter() {
                 if check_meeple
-                    .show_moves(&chess_board_clone, &(from_pos, to_pos))
+                    .show_moves(&chess_board_clone, &(from_pos, to_pos),&turn_meeples)
                     .contains(&turn_meeples_clone.last().unwrap().pos)
                 {
                     legal_move = false;
@@ -154,87 +151,6 @@ fn get_best_move_black(
     }
     best_move
 }
-
-// fn get_best_move_black(chess_board: &mut [[Option<Meeple>;8];8],last_move: &((usize,usize),(usize,usize)),level: u16,turn: Color, alpha: &mut f32, beta: &mut f32) -> Option<((usize,usize),(usize,usize),f32)> {
-//     let mut alpha_new = *alpha;
-//     let mut beta_new = *beta;
-//     let mut best_move: Option<((usize, usize), (usize, usize), f32)> = None;
-//     let (mut white,mut black) = get_meeples_from_color(chess_board, turn);
-//     let run_color_meeples ;
-//     let in_color_meeples ;
-//     if turn == Color::White {
-//         run_color_meeples = &mut black;
-//         in_color_meeples = &mut white;
-//     } else {
-//         run_color_meeples = &mut white;
-//         in_color_meeples = &mut black;
-//     };
-//     for colored_meeple in run_color_meeples.iter() {
-//         for check_meep in colored_meeple.show_moves(&chess_board, last_move) {
-//             let from_pos = colored_meeple.pos;
-//             let to_pos = check_meep;
-//             let to = chess_board[to_pos.0] [to_pos.1].take();
-//             let mut add_meep:Option<Meeple> = None;
-
-//             if let Some(index) = in_color_meeples.iter().position(|&x| x.pos == check_meep) {
-//                 add_meep = Some(in_color_meeples.swap_remove(index));
-//             }
-
-//             //try
-//             chess_board[to_pos.0] [to_pos.1] = chess_board[from_pos.0] [from_pos.1].take();
-//             chess_board[to_pos.0] [to_pos.1].as_mut().unwrap().pos =to_pos;
-
-//             //check if king can be hit
-//             let mut can_hit = false;
-//             for check_meeple in in_color_meeples.iter() {
-//                 if check_meeple.show_moves(chess_board, &(colored_meeple.pos,check_meep)).contains(if colored_meeple.typ == Type::King {&check_meep} else {&run_color_meeples.last().unwrap().pos}) {
-//                     can_hit = true;
-//                     break;
-//                 }
-//             }
-//             let mut best_hit = None;
-//             if !can_hit {
-//                 if level == 0 {
-//                     let score = calculate_board(*chess_board);
-//                     best_hit = Some((from_pos,to_pos,score));
-//                 }
-//                 if level != 0 {
-//                     if let Some((_,_,opp_score)) = get_best_move_black(chess_board, &(from_pos,to_pos), level-1,opposite_color(turn), &mut alpha_new, &mut beta_new) {
-//                         best_hit = Some((from_pos,to_pos,opp_score));
-//                     }
-//                 }
-//             }
-
-//             //undo
-//             chess_board[from_pos.0] [from_pos.1] = chess_board[to_pos.0] [to_pos.1].take();
-//             chess_board[from_pos.0] [from_pos.1].as_mut().unwrap().pos = from_pos;
-//             chess_board[to_pos.0] [to_pos.1] = to;
-
-//             if let Some(meep) = add_meep {
-//                 in_color_meeples.push(meep);
-//             }
-
-//             if let Some(values) = best_hit {
-//                 let score = values.2;
-
-//                 if best_move.is_none() || (turn == Color::White && score > best_move.unwrap().2) || (turn == Color::Black && score < best_move.unwrap().2){
-//                     best_move = Some(values);
-//                 }
-
-//                 if turn == Color::White {
-//                     alpha_new = alpha_new.max(score);
-//                 } else {
-//                     beta_new = beta_new.min(score);
-//                 }
-//             }
-
-//             if alpha_new >= beta_new || alpha >= beta {
-//                 break;
-//             }
-//         }
-//     }
-//     best_move
-// }
 
 pub fn get_meeples_from_color(
     chess_board: &[[Option<Meeple>; 8]; 8],
