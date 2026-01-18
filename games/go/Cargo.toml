@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 game_core = { path = "../../game_core" }
 egui = "0.29.1"
+eframe = "0.29.1"
