@@ -9,6 +9,10 @@ A player selects a cell to open it. If a player opens a mined cell, the game end
 In some versions of the game when the number of adjacent mines is equal to the number of adjacent flagged cells, all adjacent non-flagged unopened cells will be opened, a process known as chording.
 */
 
+// TODO: bombe verschieben
+// BUG: wenn flage im Bereich ist der mit Flood fill geöffnet wird ist die flagge WEG
+//...
+
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
@@ -183,13 +187,12 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
 
 #[allow(unused_parens)]
 pub fn reveal_bombs(game: &mut Game) {
-
     let height = game.board.len();
     let width = game.board[0].len();
 
     for y in 0..height {
         for x in 0..width {
-            if(game.board[y][x].cell_content == CellContent::Mine) {
+            if (game.board[y][x].cell_content == CellContent::Mine) {
                 game.board[y][x].cell_state = CellState::Opened;
             }
         }
@@ -270,7 +273,6 @@ pub trait Minesweeper {
 #[allow(unused_parens)]
 impl Minesweeper for Game {
     fn new_game(difficulty: Difficulty) -> Self {
-        // For the Future: First Clicked Cell cant be a Mine -> move Mine after initial board creation if needed
         let default_cell = Cell {
             cell_content: CellContent::Blank,
             cell_state: CellState::Unopened,
@@ -330,7 +332,7 @@ impl Minesweeper for Game {
             ActionKind::Open(_, _) => {
                 open(self, &action_kind);
                 self.winner();
-                if(self.game_won == true) {
+                if (self.game_won == true) {
                     reveal_bombs(self);
                 }
                 Ok(())
@@ -338,7 +340,7 @@ impl Minesweeper for Game {
             ActionKind::Flag(_, _) => {
                 flag(self, &action_kind);
                 self.winner();
-                if(self.game_won == true) {
+                if (self.game_won == true) {
                     reveal_bombs(self);
                 }
                 Ok(())

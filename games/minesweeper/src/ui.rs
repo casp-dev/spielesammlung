@@ -1,3 +1,9 @@
+// TODO: Dark/Light Mode anpassung
+// ui schöner
+// nachbarn anzeigen
+// winner/ loser screen
+// ...
+
 use crate::minesweeper::{
     ActionKind, CellContent, CellState, Difficulty, Game as MSGame, Minesweeper,
 };
@@ -93,11 +99,25 @@ impl Game for MinesweeperGame {
             }
 
             GameState::Playing(game) => {
-
                 let height = game.board.len();
                 let width = game.board[0].len();
 
+                let mut re_choose_difficulty = false;
+
                 ui.vertical_centered(|ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("🔙 Zurück").clicked() {
+                            // Outsource because game state can not be changed here
+                            re_choose_difficulty = true;
+                        }
+                        ui.separator();
+                        ui.label(RichText::new(format!("🚩: {}", game.flag_count)).size(15.0));
+                        ui.separator();
+                        ui.label(RichText::new(format!("💣: {}", game.mine_count)).size(15.0));
+                    });
+
+                    ui.add_space(10.0);
+
                     for y in 0..height {
                         ui.horizontal(|ui| {
                             for x in 0..width {
@@ -108,11 +128,11 @@ impl Game for MinesweeperGame {
                                     let click_or_flag = ui.add(button);
                                     if click_or_flag.clicked() {
                                         MSGame::apply_action(game, ActionKind::Open(x, y));
-                                        println!("Opened cell {}:{}", x, y);
+                                        // println!("Opened cell {}:{}", x, y);
                                     }
                                     if click_or_flag.secondary_clicked() {
                                         MSGame::apply_action(game, ActionKind::Flag(x, y));
-                                        println!("Flaged cell {}:{}", x, y);
+                                        // println!("Flaged cell {}:{}", x, y);
                                     }
                                 }
 
@@ -144,30 +164,10 @@ impl Game for MinesweeperGame {
                             }
                         });
                     }
-
-                    // NOT FINISHED 
-                    ui.horizontal_centered(|ui| {
-                        let flags_remaining_to_string =
-                            format!("Flaggen übrig: {}", game.flag_count.to_string());
-                        let text_flags_remaining = RichText::new(flags_remaining_to_string)
-                            .size(20.0)
-                            .color(Color32::WHITE);
-                        let button_flags_remaining = egui::Button::new(text_flags_remaining)
-                            .min_size(Vec2::new(120.0, 50.0))
-                            .fill(Color32::from_rgb(80, 0, 80));
-                        ui.add(button_flags_remaining);
-
-                        let bombs_on_field_to_string =
-                            format!("Minen auf dem Feld: {}", game.mine_count.to_string());
-                        let text_bombs_on_field = RichText::new(bombs_on_field_to_string)
-                            .size(20.0)
-                            .color(Color32::WHITE);
-                        let button_bombs_on_field = egui::Button::new(text_bombs_on_field)
-                            .min_size(Vec2::new(120.0, 50.0))
-                            .fill(Color32::from_rgb(80, 0, 80));
-                        ui.add(button_bombs_on_field);
-                    });
                 });
+                if re_choose_difficulty {
+                    self.state = GameState::ChoosingDifficulty;
+                }
             }
         }
     }
