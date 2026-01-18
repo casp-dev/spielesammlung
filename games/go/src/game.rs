@@ -146,8 +146,10 @@ impl Game {
         for (nx, ny) in neighbors {
             if let Some(s) = next_board.get(nx, ny) {
                 if s == self.current_turn.other() {
-                    let group = next_board.get_group(nx, ny);
-                    captured_stones.extend(group);
+                    if next_board.count_liberties(nx, ny) == 0 {
+                        let group = next_board.get_group(nx, ny);
+                        captured_stones.extend(group);
+                    }
                 }
             }
         }
@@ -155,6 +157,11 @@ impl Game {
         // Remove captured stones
         for &(cx, cy) in &captured_stones {
             next_board.set(cx, cy, None);
+        }
+
+        // Check suicide
+        if next_board.count_liberties(x, y) == 0 {
+            return Err("Selbstmordzug".to_string());
         }
 
         // Check Ko (simple repetition)
