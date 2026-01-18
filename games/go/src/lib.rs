@@ -117,7 +117,7 @@ impl CoreGame for GoGame {
             );
         }
 
-        // Draw stones
+        // Steine
         for y in 0..grid_size {
             for x in 0..grid_size {
                 if let Some(stone) = self.game.board.get(x, y) {
@@ -141,6 +141,42 @@ impl CoreGame for GoGame {
                         cell_size * 0.45,
                         egui::Stroke::new(1.0, stroke_color),
                     );
+                }
+            }
+        }
+
+        // Hover
+        if let Some(pos) = response.hover_pos() {
+            if !self.game.game_over {
+                let relative_pos = pos - rect.min;
+                let x_f = (relative_pos.x / cell_size) - 1.0;
+                let y_f = (relative_pos.y / cell_size) - 1.0;
+
+                let x = x_f.round() as i32;
+                let y = y_f.round() as i32;
+
+                if x >= 0 && x < grid_size as i32 && y >= 0 && y < grid_size as i32 {
+                    if self.game.board.get(x as usize, y as usize).is_none() {
+                        let center = rect.min
+                            + egui::vec2(
+                                x as f32 * cell_size + cell_size,
+                                y as f32 * cell_size + cell_size,
+                            );
+                        let color = match self.game.current_turn {
+                            Stone::Black => egui::Color32::BLACK.linear_multiply(0.3),
+                            Stone::White => egui::Color32::WHITE.linear_multiply(0.35),
+                        };
+                        let stroke_color = match self.game.current_turn {
+                            Stone::Black => egui::Color32::WHITE.linear_multiply(0.35),
+                            Stone::White => egui::Color32::BLACK.linear_multiply(0.35),
+                        };
+                        painter.circle_filled(center, cell_size * 0.45, color);
+                        painter.circle_stroke(
+                            center,
+                            cell_size * 0.45,
+                            egui::Stroke::new(1.0, stroke_color),
+                        );
+                    }
                 }
             }
         }
