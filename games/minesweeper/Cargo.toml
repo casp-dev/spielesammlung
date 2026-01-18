@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+rand = "0.8"
 game_core = { path = "../../game_core" }
 egui = "0.29.1"
+eframe = "0.29.1"
