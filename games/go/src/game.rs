@@ -227,3 +227,72 @@ impl Game {
         (black_score, white_score)
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_capture() {
+        let mut game = Game::new(9);
+        // B
+        game.place_stone(0, 1).unwrap();
+        // W
+        game.place_stone(0, 0).unwrap();
+        // B
+        game.place_stone(1, 0).unwrap();
+
+        // W bei 0,0
+        assert_eq!(game.board.get(0, 0), None);
+        assert_eq!(game.captured_white, 1);
+    }
+
+    #[test]
+    fn test_suicide_rule() {
+        let mut game = Game::new(9);
+
+        // B
+        game.place_stone(0, 1).unwrap();
+        // W
+        game.place_stone(1, 1).unwrap();
+        // B
+        game.place_stone(1, 0).unwrap();
+
+        let result = game.place_stone(0, 0);
+        assert!(result.is_err());
+        assert_eq!(result.err(), Some("Selbstmordzug".to_string()));
+    }
+
+    #[test]
+    fn test_ko_rule() {
+
+        // .  . B .
+        // B W . B
+        // . . B .
+
+        let mut game = Game::new(5);
+        let params = [
+            (2, 1), // B
+            (3, 1), // W
+            (1, 2), // B
+            (4, 2), // W
+            (2, 3), // B
+            (3, 3), // W
+        ];
+
+        for (x, y) in params {
+            game.place_stone(x, y).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_game_over() {
+        let mut game = Game::new(9);
+        assert!(!game.game_over);
+        game.pass();
+        assert!(!game.game_over);
+        game.pass();
+        assert!(game.game_over);
+    }
+}
