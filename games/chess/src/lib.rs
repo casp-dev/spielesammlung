@@ -6,28 +6,30 @@ use game_core::Game;
 mod engine;
 mod meeples;
 use crate::{
-    draw::draw_board,
+    draw::{draw_board, draw_start_window},
     engine::{calculate_board, Engine},
     meeples::{opposite_color, Color, Meeple, Type},
 };
 mod draw;
-//als nächstes: bot auch roschade und en passant und drei mal ding
+
 pub struct ChessGame {
     state: String,
     pub game_board: [[Option<Meeple>; 8]; 8],
     possible_moves: [[Option<Vec<(usize, usize)>>; 8]; 8],
     pub shown_moves: Option<Vec<(usize, usize)>>,
-    casteling_rights: ((bool,bool),(bool,bool)),
-    en_passant_pos: Option<(usize,usize)>,
+    casteling_rights: ((bool, bool), (bool, bool)),
+    en_passant_pos: Option<(usize, usize)>,
     repeat: HashMap<String, u8>,
     logs: Vec<((usize, usize), (usize, usize))>,
     clicked_meeple: (usize, usize),
     turn: Color,
     pawn_mutate: bool,
     engine: Option<Engine>,
+    possible_bot_level: u16,
 }
 
 impl ChessGame {
+    ///this functions creates a new Chessboard with the state "initial" and no Engine
     pub fn new() -> Self {
         let state_ = "initial".to_string();
         let mut chess_board: [[Option<Meeple>; 8]; 8] = Default::default();
@@ -75,16 +77,18 @@ impl ChessGame {
             possible_moves: possible_moves_,
             shown_moves: None,
             logs: logs_,
-            casteling_rights: ((false,false),(false,false)),
+            casteling_rights: ((false, false), (false, false)),
             en_passant_pos: Default::default(),
             repeat: HashMap::new(),
             clicked_meeple: (42, 42),
             turn: turn_,
             pawn_mutate: false,
             engine: None,
+            possible_bot_level: 3,
         }
     }
 
+    ///this function creates one meeple for
     fn create_special_line(cords: (usize, usize), color: Color) -> Meeple {
         match cords.0 {
             0 | 7 => Meeple::new(cords, Type::Rook, color, 5.0),
@@ -126,11 +130,14 @@ impl ChessGame {
         self.check_pawn_mutate(scnd);
         self.turn = opposite_color(self.turn);
         self.get_all_possible_moves();
-        self.move_engine();
-        if self.state != "White has won" && self.state != "Black has won" && self.state != "Tie because of triple repetition" {
+        if self.state != "White has won"
+            && self.state != "Black has won"
+            && self.state != "Tie because of triple repetition"
+        {
             self.state = calculate_board(self.game_board).to_string();
         }
         self.triple_repetition();
+        self.move_engine();
     }
 
     fn check_casteling(&self, frst_pos: (usize, usize), scnd_pos: (usize, usize)) -> bool {
@@ -172,8 +179,12 @@ impl ChessGame {
                 && ((pawn.color == Color::White && pawn.pos.1 == 0)
                     || (pawn.color == Color::Black && pawn.pos.1 == 7))
             {
-                if !self.engine.is_none() {
-                    self.mutate_pawn(Type::Queen);
+                if let Some(bot) = self.engine {
+                    if bot.color == pawn.color {
+                        self.mutate_pawn(Type::Queen);
+                        return;
+                    }
+                    self.pawn_mutate = true;
                 } else {
                     self.pawn_mutate = true;
                 }
@@ -194,23 +205,17 @@ impl ChessGame {
             };
         }
         self.pawn_mutate = false;
-        if let Some(bot) = self.engine {
-            if bot.color == self.turn {
-                self.turn = opposite_color(self.turn);
-            } else {
-                self.move_engine();
-            }
+        if !self.engine.is_none() {
+            self.turn = opposite_color(self.turn);
+            self.move_engine();
         }
     }
 
     fn move_engine(&mut self) {
         if let Some(bot) = self.engine {
             if bot.color == self.turn && self.pawn_mutate == false {
-                let bot_move = bot.move_move(
-                    &mut self.game_board,
-                    &self.logs.last().unwrap(),
-                    self.turn,
-                );
+                let bot_move =
+                    bot.move_move(&mut self.game_board, &self.logs.last().unwrap(), self.turn);
                 if bot_move == ((42, 42), (42, 42)) {
                     self.state = format!("{:?} has won", opposite_color(self.turn));
                 } else {
@@ -227,7 +232,12 @@ impl ChessGame {
         let mut can_move = false;
         for colored_meeple in colores.0 {
             let meeples = get_meeples_from_color(&self.game_board, Color::White);
-            let can_hit = colored_meeple.show_legal_moves(&self.game_board, &self.logs.last().unwrap(), &meeples.0,&meeples.1);
+            let can_hit = colored_meeple.show_legal_moves(
+                &self.game_board,
+                &self.logs.last().unwrap(),
+                &meeples.0,
+                &meeples.1,
+            );
             if !can_hit.0.is_empty() {
                 can_move = true;
             }
@@ -242,9 +252,9 @@ impl ChessGame {
         self.possible_moves = ret_vec.clone();
     }
 
-    ///this fct makes a key out of the current board which is saved like FEN (Forsyth–Edwards Notation) (the only 
-    ///difference is that the en passant is different) and looks if 
-    ///the key is already put into the hashmap 
+    ///this fct makes a key out of the current board which is saved like FEN (Forsyth–Edwards Notation) (the only
+    ///difference is that the en passant is different) and looks if
+    ///the key is already put into the hashmap
     fn triple_repetition(&mut self) {
         let mut hash_key = String::new();
         let mut empty_counter = 0;
@@ -269,25 +279,28 @@ impl ChessGame {
             } else {
                 hash_key.push('/');
             }
-
         }
-        hash_key.push_str(if self.turn == Color::White { "w " } else { "b " });
-        if self.casteling_rights.0.0 {
+        hash_key.push_str(if self.turn == Color::White {
+            "w "
+        } else {
+            "b "
+        });
+        if self.casteling_rights.0 .0 {
             hash_key.push('K');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.0.1 {
+        if self.casteling_rights.0 .1 {
             hash_key.push('Q');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.1.0 {
+        if self.casteling_rights.1 .0 {
             hash_key.push('k');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.1.1 {
+        if self.casteling_rights.1 .1 {
             hash_key.push('q');
         } else {
             hash_key.push('-');
@@ -302,14 +315,16 @@ impl ChessGame {
             hash_key.push('-');
         }
 
-        self.repeat.entry(hash_key.clone()).and_modify(|e| *e += 1).or_insert(1);
+        self.repeat
+            .entry(hash_key.clone())
+            .and_modify(|e| *e += 1)
+            .or_insert(1);
         if let Some(count) = self.repeat.get(&hash_key) {
             if *count >= 3 {
                 self.state = "Tie because of triple repetition".to_string();
             }
         }
     }
-
 }
 
 fn walk_and_replace(
@@ -372,29 +387,20 @@ impl Game for ChessGame {
                 || self.state == "White has won"
                 || self.state == "Black has won"
             {
-                let reset_btn = egui::Button::new("Reset Game");
-                if ui.add(reset_btn).clicked() {
-                    *self = ChessGame::new();
-                }
                 ui.heading(RichText::new(&self.state).strong().color(Color32::RED));
             } else {
                 ui.heading(format!("score: {}", self.state));
             }
+            let reset_btn = egui::Button::new("Reset Game");
+            if ui.add(reset_btn).clicked() {
+                let bot = self.engine.clone();
+                *self = ChessGame::new();
+                self.engine = bot;
+                self.state = "0.0".to_string();
+            }
             draw_board(ui, self);
         } else {
-            let local_btn = egui::Button::new("Play local");
-            let bot_btn = egui::Button::new("Play vs Bot");
-            let multiplayer_btn = egui::Button::new("Multiplayer (soon)");
-            if ui.add(local_btn).clicked() {
-                self.state = "0.0".to_string();
-            }
-            if ui.add(bot_btn).clicked() {
-                self.state = "0.0".to_string();
-                self.engine = Some(Engine::new(5, Color::Black));
-            }
-            if ui.add(multiplayer_btn).clicked() {
-                //todo multiplayer
-            }
+            draw_start_window(ui, self);
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Instant;
 
-use crate::meeples::{ opposite_color, Color, Meeple, Type};
+use crate::meeples::{opposite_color, Color, Meeple, Type};
 #[derive(Clone, Copy)]
 pub struct Engine {
     pub level: u16,
@@ -54,6 +54,7 @@ impl Engine {
     }
 }
 
+///this fct does a minmax to get the best move with alpha beta pruning
 fn get_best_move_black(
     chess_board: [[Option<Meeple>; 8]; 8],
     last_move: ((usize, usize), (usize, usize)),
@@ -67,7 +68,9 @@ fn get_best_move_black(
     //it is runcolores turn and incolor is the opponent
     let mut best_move: Option<((usize, usize), (usize, usize), f32)> = None;
     for colored_meeple in turn_meeples.iter() {
-        for check_meep in colored_meeple.show_moves(&chess_board, &last_move,&opposite_turn_meeples) {
+        for check_meep in
+            colored_meeple.show_moves(&chess_board, &last_move, &opposite_turn_meeples)
+        {
             let mut chess_board_clone = chess_board.clone();
             let from_pos = colored_meeple.pos;
             let to_pos = check_meep;
@@ -96,7 +99,7 @@ fn get_best_move_black(
             let mut legal_move = true;
             for check_meeple in opposite_turn_meeples_clone.iter() {
                 if check_meeple
-                    .show_moves(&chess_board_clone, &(from_pos, to_pos),&turn_meeples)
+                    .show_moves(&chess_board_clone, &(from_pos, to_pos), &turn_meeples)
                     .contains(&turn_meeples_clone.last().unwrap().pos)
                 {
                     legal_move = false;

@@ -131,7 +131,7 @@ impl CoreGame for GoGame {
                         Stone::White => egui::Color32::WHITE,
                     };
                     let stroke_color = match stone {
-                        Stone::Black => egui::Color32::WHITE, 
+                        Stone::Black => egui::Color32::WHITE,
                         Stone::White => egui::Color32::BLACK,
                     };
 

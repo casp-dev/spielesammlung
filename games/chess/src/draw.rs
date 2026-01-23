@@ -1,8 +1,31 @@
 use crate::{
+    engine::Engine,
     meeples::{get_meeple_at, Color, Meeple, Type},
     ChessGame,
 };
 
+pub fn draw_start_window(ui: &mut egui::Ui, game: &mut ChessGame) {
+    let screen_size = ui.available_size();
+    let button_width = screen_size.x * 0.4;
+    let button_height = screen_size.y * 0.2;
+    let local_btn =
+        egui::Button::new("Play local ♚ v ♔").min_size(egui::vec2(button_width, button_height));
+    let bot_btn =
+        egui::Button::new("Play vs Bot ♚ v ♔").min_size(egui::vec2(button_width, button_height));
+    let multiplayer_btn = egui::Button::new("Multiplayer (soon) ♚ v ♔")
+        .min_size(egui::vec2(button_width, button_height));
+    if ui.add(local_btn).clicked() {
+        game.state = "0.0".to_string();
+    }
+    ui.add(egui::Slider::new(&mut game.possible_bot_level, 1..=7).text("level"));
+    if ui.add(bot_btn).clicked() {
+        game.state = "0.0".to_string();
+        game.engine = Some(Engine::new(game.possible_bot_level, Color::Black));
+    }
+    if ui.add(multiplayer_btn).clicked() {
+        //todo multiplayer
+    }
+}
 pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
     egui::Grid::new("chess_board")
         .spacing(egui::vec2(0.0, 0.0))

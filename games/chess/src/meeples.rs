@@ -55,24 +55,29 @@ impl Meeple {
         chess_board: &[[Option<Meeple>; 8]; 8],
         last_move: &((usize, usize), (usize, usize)),
         white_meeples: &Vec<Meeple>,
-        black_meeples: &Vec<Meeple>) -> (Vec<(usize,usize)>,Option<(usize,usize)>,((bool,bool),(bool,bool))) {
-        let mut legal_moves:Vec<(usize,usize)> = Vec::new();
-        let (turn_meeples,opposite_turn_meeples) = match self.color {
-            Color::White => (white_meeples,black_meeples),
-            Color::Black => (black_meeples,white_meeples),
+        black_meeples: &Vec<Meeple>,
+    ) -> (
+        Vec<(usize, usize)>,
+        Option<(usize, usize)>,
+        ((bool, bool), (bool, bool)),
+    ) {
+        let mut legal_moves: Vec<(usize, usize)> = Vec::new();
+        let (turn_meeples, opposite_turn_meeples) = match self.color {
+            Color::White => (white_meeples, black_meeples),
+            Color::Black => (black_meeples, white_meeples),
         };
-        let mut casteling_rights = ((false,false),(false,false));
-        let mut en_passant_pos:Option<(usize,usize)> = None;
+        let mut casteling_rights = ((false, false), (false, false));
+        let mut en_passant_pos: Option<(usize, usize)> = None;
         let all_moves = match self.typ {
             Type::King => {
                 let things = self.show_moves_king(&chess_board, last_move, opposite_turn_meeples);
                 if self.color == Color::White {
-                    casteling_rights.0 = (things.1,things.2);
+                    casteling_rights.0 = (things.1, things.2);
                 } else {
-                    casteling_rights.1 = (things.1,things.2);
+                    casteling_rights.1 = (things.1, things.2);
                 }
                 things.0
-            },
+            }
             Type::Pawn => {
                 let things = self.show_moves_pawn(&chess_board, last_move);
                 en_passant_pos = things.1;
@@ -80,7 +85,7 @@ impl Meeple {
             }
             _ => self.show_moves(chess_board, last_move, opposite_turn_meeples),
         };
-        self.show_moves(chess_board, last_move,opposite_turn_meeples);
+        self.show_moves(chess_board, last_move, opposite_turn_meeples);
         for meeple_move in all_moves {
             let mut chess_board_clone = chess_board.clone();
             let from_pos = self.pos;
@@ -107,7 +112,7 @@ impl Meeple {
             let mut legal_move = true;
             for check_meeple in opposite_turn_meeples_clone.iter() {
                 if check_meeple
-                    .show_moves(&chess_board_clone, &(from_pos, to_pos),&opposite_turn_meeples_clone)
+                    .show_moves(&chess_board_clone, &(from_pos, to_pos), &turn_meeples_clone)
                     .contains(&turn_meeples_clone.last().unwrap().pos)
                 {
                     legal_move = false;
@@ -118,7 +123,7 @@ impl Meeple {
                 legal_moves.push(to_pos);
             }
         }
-        (legal_moves,en_passant_pos,casteling_rights)
+        (legal_moves, en_passant_pos, casteling_rights)
     }
     ///This function returns a Vec<> with the positions where the Meeple can go to
     ///it runs seperate functions for each type of Meeple
@@ -126,7 +131,7 @@ impl Meeple {
         &self,
         chess_board: &[[Option<Meeple>; 8]; 8],
         last_move: &((usize, usize), (usize, usize)),
-        opponent_meeples: &Vec<Meeple>
+        opponent_meeples: &Vec<Meeple>,
     ) -> Vec<(usize, usize)> {
         match self.typ {
             Type::Pawn => self.show_moves_pawn(chess_board, last_move).0,
@@ -134,7 +139,10 @@ impl Meeple {
             Type::Bishop => self.show_moves_bishop(&chess_board),
             Type::Rook => self.show_moves_rook(&chess_board),
             Type::Queen => self.show_moves_queen(&chess_board),
-            Type::King => self.show_moves_king(&chess_board, last_move,opponent_meeples).0,
+            Type::King => {
+                self.show_moves_king(&chess_board, last_move, opponent_meeples)
+                    .0
+            }
         }
     }
 
@@ -144,7 +152,7 @@ impl Meeple {
         last_move: &((usize, usize), (usize, usize)),
     ) -> (Vec<(usize, usize)>, Option<(usize, usize)>) {
         let mut possible_moves: Vec<(usize, usize)> = Vec::new();
-        let mut en_passant_pos: Option<(usize, usize)> = None;  
+        let mut en_passant_pos: Option<(usize, usize)> = None;
         let pawn_move_add_vec = self.get_pawn_vec();
         let mut check_pos = self.pos_add(pawn_move_add_vec[0]);
         //no hit moves
@@ -273,8 +281,8 @@ impl Meeple {
         &self,
         chess_board: &[[Option<Meeple>; 8]; 8],
         last_move: &((usize, usize), (usize, usize)),
-        opponent_meeples: &Vec<Meeple>
-    ) -> (Vec<(usize, usize)>,bool,bool) {
+        opponent_meeples: &Vec<Meeple>,
+    ) -> (Vec<(usize, usize)>, bool, bool) {
         let mut possible_moves: Vec<(usize, usize)> = Vec::new();
         let check_add_vec: [(i8, i8); 8] = [
             (-1, -1),
@@ -297,16 +305,21 @@ impl Meeple {
         }
 
         if self.move_counter == 0 && last_move != &((42, 42), (42, 42)) {
-            possible_moves.append(&mut self.check_casteling_king_and_queen(chess_board,opponent_meeples).0);
+            possible_moves.append(
+                &mut self
+                    .check_casteling_king_and_queen(chess_board, opponent_meeples)
+                    .0,
+            );
         }
 
-        (possible_moves,false,false)
+        (possible_moves, false, false)
     }
-    fn check_casteling_king_and_queen(// possible_moves.append(&m
+    fn check_casteling_king_and_queen(
+        // possible_moves.append(&m
         &self,
         chess_board: &[[Option<Meeple>; 8]; 8],
-        opponent_meeples: &Vec<Meeple>
-    ) -> (Vec<(usize,usize)>,bool,bool) {
+        opponent_meeples: &Vec<Meeple>,
+    ) -> (Vec<(usize, usize)>, bool, bool) {
         let mut possible_moves: Vec<(usize, usize)> = Vec::new();
         let y = self.pos.1;
 
@@ -320,7 +333,7 @@ impl Meeple {
         }
 
         if let Some(right_meeples) = check_vec_right {
-            if self.check_casteling_chess(right_meeples, chess_board,opponent_meeples) {
+            if self.check_casteling_chess(right_meeples, chess_board, opponent_meeples) {
                 possible_moves.push((6, y));
             }
         }
@@ -338,21 +351,25 @@ impl Meeple {
         }
 
         if let Some(left_meeples) = check_vec_left {
-            if self.check_casteling_chess(left_meeples, chess_board,opponent_meeples) {
+            if self.check_casteling_chess(left_meeples, chess_board, opponent_meeples) {
                 possible_moves.push((2, y));
             }
         }
-        (possible_moves,false,false)
+        (possible_moves, false, false)
     }
 
     fn check_casteling_chess(
         &self,
         check_meeples: Vec<(usize, usize)>,
         chess_board: &[[Option<Meeple>; 8]; 8],
-        opponent_meeples: &Vec<Meeple>
+        opponent_meeples: &Vec<Meeple>,
     ) -> bool {
         for opponent_meeple in opponent_meeples {
-            if opponent_meeple.show_moves(chess_board, &((42, 42), (42, 42)),&Vec::<Meeple>::new()).iter().any(|x| check_meeples.contains(x)) {
+            if opponent_meeple
+                .show_moves(chess_board, &((42, 42), (42, 42)), &Vec::<Meeple>::new())
+                .iter()
+                .any(|x| check_meeples.contains(x))
+            {
                 return false;
             }
         }
@@ -445,22 +462,22 @@ impl Meeple {
     }
 
     pub fn get_char(&self) -> char {
-        match (self.typ,self.color) {
-            (Type::Pawn,Color::White) => 'W',
-            (Type::Knight,Color::White) => 'N',
-            (Type::Bishop,Color::White) => 'B',
-            (Type::Rook,Color::White) => 'R',
-            (Type::Queen,Color::White) => 'Q',
-            (Type::King,Color::White) => 'K',
-            (Type::Pawn,Color::Black) => 'w',
-            (Type::Knight,Color::Black) => 'n',
-            (Type::Bishop,Color::Black) => 'b',
-            (Type::Rook,Color::Black) => 'r',
-            (Type::Queen,Color::Black) => 'q',
-            (Type::King,Color::Black) => 'k',
+        match (self.typ, self.color) {
+            (Type::Pawn, Color::White) => 'W',
+            (Type::Knight, Color::White) => 'N',
+            (Type::Bishop, Color::White) => 'B',
+            (Type::Rook, Color::White) => 'R',
+            (Type::Queen, Color::White) => 'Q',
+            (Type::King, Color::White) => 'K',
+            (Type::Pawn, Color::Black) => 'w',
+            (Type::Knight, Color::Black) => 'n',
+            (Type::Bishop, Color::Black) => 'b',
+            (Type::Rook, Color::Black) => 'r',
+            (Type::Queen, Color::Black) => 'q',
+            (Type::King, Color::Black) => 'k',
         }
     }
- }
+}
 
 ///only to look up what meeple is where (not mutable)
 pub fn get_meeple_at(
