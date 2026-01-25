@@ -92,7 +92,7 @@ impl ChessGame {
     fn create_special_line(cords: (usize, usize), color: Color) -> Meeple {
         match cords.0 {
             0 | 7 => Meeple::new(cords, Type::Rook, color, 5.0),
-            1 | 6 => Meeple::new(cords, Type::Knight, color, 3.0),
+            1 | 6 => Meeple::new(cords, Type::Knight, color, 2.7),
             2 | 5 => Meeple::new(cords, Type::Bishop, color, 3.0),
             3 => Meeple::new(cords, Type::Queen, color, 9.0),
             4 => Meeple::new(cords, Type::King, color, 0.0),
@@ -112,6 +112,12 @@ impl ChessGame {
     }
 
     pub fn move_meeple(&mut self, scnd: (usize, usize)) {
+        if self.state == "White has won"
+            || self.state == "Black has won"
+            || self.state == "Tie because of triple repetition"
+        { 
+            return;
+        }
         let frst = self.clicked_meeple.clone();
 
         if self.check_casteling(frst, scnd) {
@@ -129,13 +135,8 @@ impl ChessGame {
         self.shown_moves = Default::default();
         self.check_pawn_mutate(scnd);
         self.turn = opposite_color(self.turn);
+        self.state = calculate_board(self.game_board).to_string();
         self.get_all_possible_moves();
-        if self.state != "White has won"
-            && self.state != "Black has won"
-            && self.state != "Tie because of triple repetition"
-        {
-            self.state = calculate_board(self.game_board).to_string();
-        }
         self.triple_repetition();
         self.move_engine();
     }
@@ -206,7 +207,6 @@ impl ChessGame {
         }
         self.pawn_mutate = false;
         if !self.engine.is_none() {
-            self.turn = opposite_color(self.turn);
             self.move_engine();
         }
     }
@@ -239,8 +239,9 @@ impl ChessGame {
                 &meeples.1,
             );
             if !can_hit.0.is_empty() {
-                can_move = true;
+                can_move = true;        
             }
+
             self.en_passant_pos = can_hit.1;
             self.casteling_rights = can_hit.2;
             ret_vec[colored_meeple.pos.0][colored_meeple.pos.1] = Some(can_hit.0);

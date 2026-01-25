@@ -20,7 +20,13 @@ pub fn draw_start_window(ui: &mut egui::Ui, game: &mut ChessGame) {
     ui.add(egui::Slider::new(&mut game.possible_bot_level, 1..=7).text("level"));
     if ui.add(bot_btn).clicked() {
         game.state = "0.0".to_string();
-        game.engine = Some(Engine::new(game.possible_bot_level, Color::Black));
+        let search_depth = match game.possible_bot_level {
+            1..=2 => 2,  
+            3..=4 => 3, 
+            5..=6 => 4,  
+            _ => 5,      
+        };
+        game.engine = Some(Engine::new(search_depth, Color::Black));
     }
     if ui.add(multiplayer_btn).clicked() {
         //todo multiplayer
