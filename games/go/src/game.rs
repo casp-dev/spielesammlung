@@ -60,7 +60,6 @@ impl Board {
         neighbors
     }
 
-
     pub fn get_group(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
         let color = match self.get(x, y) {
             Some(c) => c,
@@ -104,6 +103,7 @@ impl Board {
     }
 }
 
+#[derive(Clone)]
 pub struct Game {
     pub board: Board,
     pub current_turn: Stone,
@@ -113,6 +113,7 @@ pub struct Game {
     pub captured_black: usize,
     pub captured_white: usize,
     pub game_over: bool,
+    pub history: Vec<(usize, usize)>,
 }
 
 impl Game {
@@ -126,6 +127,7 @@ impl Game {
             captured_black: 0,
             captured_white: 0,
             game_over: false,
+            history: Vec::new(),
         }
     }
     pub fn place_stone(&mut self, x: usize, y: usize) -> Result<(), String> {
@@ -181,6 +183,7 @@ impl Game {
         self.current_turn = self.current_turn.other();
         self.consecutive_passes = 0;
         self.last_move = Some((x, y));
+        self.history.push((x, y));
 
         Ok(())
     }
@@ -196,11 +199,12 @@ impl Game {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_valid_moves(&self) {
         //todo
     }
 
-        pub fn get_empty_points(&self) -> Vec<(usize, usize)> {
+    pub fn get_empty_points(&self) -> Vec<(usize, usize)> {
         let mut points = Vec::new();
         for y in 0..self.board.size {
             for x in 0..self.board.size {
@@ -226,8 +230,29 @@ impl Game {
 
         (black_score, white_score)
     }
-}
 
+    pub fn is_terminal(&self) -> bool {
+        self.game_over || self.consecutive_passes >= 2
+    }
+
+    pub fn calculate_material_score(&self) -> (f32, f32) {
+        let mut black_score = 0.0;
+        let mut white_score = 6.5; // Komi
+
+        for stone in &self.board.grid {
+            match stone {
+                Some(Stone::Black) => black_score += 1.0,
+                Some(Stone::White) => white_score += 1.0,
+                None => {}
+            }
+        }
+
+        black_score += self.captured_white as f32;
+        white_score += self.captured_black as f32;
+
+        (black_score, white_score)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -266,7 +291,6 @@ mod tests {
 
     #[test]
     fn test_ko_rule() {
-
         // .  . B .
         // B W . B
         // . . B .

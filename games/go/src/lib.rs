@@ -5,6 +5,7 @@ use ai::get_best_move;
 use game::{Game, Stone};
 use game_core::Game as CoreGame;
 
+#[allow(dead_code)]
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([600.0, 750.0]),

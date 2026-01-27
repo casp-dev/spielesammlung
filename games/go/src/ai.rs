@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 #[derive(Clone, Debug)]
 pub struct MCTSStats {
     pub iterations: usize,
+    #[allow(dead_code)]
     pub root_player: Stone,
     pub top_moves: Vec<((usize, usize), u32, f32)>, // (Move, Visits, Score)
 }
