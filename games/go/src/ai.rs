@@ -49,4 +49,21 @@ impl MCTSNode {
     pub fn is_terminal(&self) -> bool {
         self.state.is_terminal()
     }
+
+    pub fn uct_value(&self, parent_visits: u32, is_root_player: bool) -> f32 {
+        if self.visits == 0 {
+            return f32::INFINITY;
+        }
+        let exploration_constant = 0.8;
+
+        let mean_score = self.total_score / self.visits as f32;
+        let exploitation = if is_root_player {
+            mean_score
+        } else {
+            1.0 - mean_score
+        };
+        let exploration =
+            exploration_constant * ((parent_visits as f32).ln() / self.visits as f32).sqrt();
+        exploitation + exploration
+    }
 }
