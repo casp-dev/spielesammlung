@@ -1,7 +1,8 @@
 use crate::game::{Game, Stone};
-use rand::prelude::SliceRandom;
+use rand::prelude::{IndexedRandom, SliceRandom};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug)]
 pub struct MCTSStats {
@@ -232,4 +233,178 @@ fn get_sensible_moves(game: &Game) -> Vec<(usize, usize)> {
     }
 
     moves
+}
+
+pub fn get_best_move(game: &Game, _iterations: usize) -> (Option<(usize, usize)>, MCTSStats) {
+    let time_budget = Duration::from_millis(1500);
+    let start_time = Instant::now();
+
+    let root_player = game.current_turn;
+    let root = Rc::new(RefCell::new(MCTSNode::new(game.clone(), None, None)));
+
+    let mut loops = 0;
+
+    while start_time.elapsed() < time_budget {
+        loops += 1;
+        let mut node = root.clone();
+
+        // 1. selection
+        loop {
+            let borrowed = node.borrow();
+            if borrowed.is_terminal() || !borrowed.is_fully_expanded() {
+                break;
+            }
+
+            if !borrowed.children.is_empty() {
+                let parent_visits = borrowed.visits;
+                let is_root_player = borrowed.state.current_turn == root_player;
+
+                let next_node = borrowed
+                    .children
+                    .iter()
+                    .max_by(|a, b| {
+                        let a_val = a.borrow().uct_value(parent_visits, is_root_player);
+                        let b_val = b.borrow().uct_value(parent_visits, is_root_player);
+                        a_val.partial_cmp(&b_val).unwrap()
+                    })
+                    .cloned();
+
+                drop(borrowed);
+                if let Some(n) = next_node {
+                    node = n;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        // 2. EXPANSION
+        if !node.borrow().is_terminal() {
+            while !node.borrow().is_fully_expanded() {
+                let move_option = node.borrow_mut().unexpanded_moves.pop();
+                if let Some((mx, my)) = move_option {
+                    let mut new_state = node.borrow().state.clone();
+                    if new_state.place_stone(mx, my).is_ok() {
+                        let new_node = Rc::new(RefCell::new(MCTSNode::new(
+                            new_state,
+                            Some((mx, my)),
+                            Some(node.clone()),
+                        )));
+                        node.borrow_mut().children.push(new_node.clone());
+                        node = new_node;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. ( Fast Atari)
+        let mut sim_state = node.borrow().state.clone();
+
+        sim_state.previous_states.clear();
+        sim_state.history.clear();
+
+        let mut rng = rand::rng();
+        let mut moves_count = 0;
+
+        while !sim_state.is_terminal() && moves_count < 60 {
+            let mut moved = false;
+            let c = sim_state.current_turn;
+            let opp = c.other();
+
+            //  1: Fast Kill
+            let kill_moves = get_fast_atari_moves(&sim_state, opp);
+            if let Some(&(kx, ky)) = kill_moves.first() {
+                if sim_state.place_stone(kx, ky).is_ok() {
+                    moved = true;
+                }
+            }
+
+            //  2: Fast Save
+            if !moved {
+                let save_moves = get_fast_atari_moves(&sim_state, c);
+                if let Some(&(sx, sy)) = save_moves.first() {
+                    if sim_state.place_stone(sx, sy).is_ok() {
+                        moved = true;
+                    }
+                }
+            }
+
+            //  3: Random
+            if !moved {
+                let empty = sim_state.get_empty_points();
+                for _ in 0..5 {
+                    if let Some(&(mx, my)) = empty.choose(&mut rng) {
+                        if sim_state.place_stone(mx, my).is_ok() {
+                            moved = true;
+                            break;
+                        }
+                    }
+                }
+                if !moved {
+                    sim_state.pass();
+                }
+            }
+            moves_count += 1;
+        }
+
+        // 4. scoring
+        let (b_score, w_score) = if sim_state.is_terminal() {
+            sim_state.calculate_score()
+        } else {
+            sim_state.calculate_material_score()
+        };
+
+        let diff = if root_player == Stone::Black {
+            b_score - w_score
+        } else {
+            w_score - b_score
+        };
+        let reward = score_sigmoid(diff);
+
+        // 5. backprop.
+        let mut backprop = Some(node);
+        while let Some(n) = backprop {
+            let mut b = n.borrow_mut();
+            b.visits += 1;
+            b.total_score += reward;
+            backprop = b.parent.clone();
+        }
+    }
+
+    let root_borrowed = root.borrow();
+    let mut stats: Vec<_> = root_borrowed
+        .children
+        .iter()
+        .map(|c| {
+            let b = c.borrow();
+            (
+                b.move_from_parent.unwrap(),
+                b.visits,
+                b.total_score / b.visits as f32,
+            )
+        })
+        .collect();
+
+    stats.sort_by(|a, b| b.1.cmp(&a.1));
+
+    println!("\n=== MCTS (Root {:?}) ===", root_player);
+    println!("Time: 1.5s | Iterations: {}", loops);
+    println!("Top 5 Moves:");
+    println!("Move\t\tVisits\tScore");
+    for (m, v, s) in stats.iter().take(5) {
+        println!("{:?}\t{}\t{:.3}", m, v, s);
+    }
+
+    let best_move = stats.first().map(|s| s.0);
+
+    let mcts_stats = MCTSStats {
+        iterations: loops,
+        root_player,
+        top_moves: stats.into_iter().take(5).collect(),
+    };
+
+    (best_move, mcts_stats)
 }

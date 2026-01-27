@@ -1,6 +1,7 @@
 mod ai;
 mod game;
 
+use ai::get_best_move;
 use game::{Game, Stone};
 use game_core::Game as CoreGame;
 
@@ -62,6 +63,38 @@ impl CoreGame for GoGame {
                 );
             } else {
                 self.status_message = format!("Gepasst. {:?} ist am Zug.", self.game.current_turn);
+            }
+        }
+
+        if ui.button("AI Zug").clicked() && !self.game.game_over {
+            let (best_move, stats) = get_best_move(&self.game, 1000);
+            if let Some((x, y)) = best_move {
+                match self.game.place_stone(x, y) {
+                    Ok(_) => {
+                        self.status_message = format!(
+                            "AI spielt ({}, {}). {:?} ist am Zug.",
+                            x, y, self.game.current_turn
+                        );
+                        // show top moves from MCTS
+                        let top_moves_str: String = stats
+                            .top_moves
+                            .iter()
+                            .take(3)
+                            .map(|(m, v, s)| format!("({},{}):{}/{:.2}", m.0, m.1, v, s))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        self.ai_stats_message = format!(
+                            "MCTS: {} Iterationen, Top: {}",
+                            stats.iterations, top_moves_str
+                        );
+                    }
+                    Err(e) => {
+                        self.status_message = format!("AI Zug ungültig: {}", e);
+                    }
+                }
+            } else {
+                self.game.pass();
+                self.status_message = "AI passt.".to_owned();
             }
         }
 
