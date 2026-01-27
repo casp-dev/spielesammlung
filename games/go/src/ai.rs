@@ -68,6 +68,10 @@ impl MCTSNode {
     }
 }
 
+fn score_sigmoid(diff: f32) -> f32 {
+    1.0 / (1.0 + (-diff * 0.2).exp())
+}
+
 fn get_fast_atari_moves(game: &Game, target_color: Stone) -> Vec<(usize, usize)> {
     let size = game.board.size;
     let mut visited = vec![false; size * size];
