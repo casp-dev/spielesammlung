@@ -1,3 +1,4 @@
+mod ai;
 mod game;
 
 use game::{Game, Stone};
@@ -18,6 +19,7 @@ fn main() -> eframe::Result<()> {
 pub struct GoGame {
     game: Game,
     status_message: String,
+    ai_stats_message: String,
 }
 
 impl Default for GoGame {
@@ -25,6 +27,7 @@ impl Default for GoGame {
         Self {
             game: Game::new(19), // Standard 19x19 brett
             status_message: "Spiel gestartet. Schwarz ist am Zug.".to_owned(),
+            ai_stats_message: String::new(),
         }
     }
 }
@@ -65,9 +68,13 @@ impl CoreGame for GoGame {
         if ui.button("Spiel neustarten").clicked() {
             self.game = Game::new(19);
             self.status_message = "Spiel neugestartet. Schwarz ist am Zug.".to_owned();
+            self.ai_stats_message.clear();
         }
 
         ui.label(&self.status_message);
+        if !self.ai_stats_message.is_empty() {
+            ui.label(&self.ai_stats_message);
+        }
 
         if self.game.game_over {
             let (b_score, w_score) = self.game.calculate_score();
