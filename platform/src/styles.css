@@ -89,3 +89,27 @@ p {
   color: #666;
   font-style: italic;
 }
+
+/* GO Styles */
+.go-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.go-board-svg {
+  cursor: pointer;
+  border-radius: 1rem;
+  max-width: 100%;
+  height: auto;
+}
+
+.info-panel {
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  font-size: 1.1rem;
+}
