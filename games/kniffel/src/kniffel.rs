@@ -1,3 +1,4 @@
+use crate::bot::*;
 use rand::Rng;
 use std::cmp::Ordering;
 
@@ -43,11 +44,18 @@ pub struct PointTable {
 
 pub type DiceThrow = [Dice; 5];
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
+pub enum PlayerKind {
+    Human,
+    Bot,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Player {
     pub point_table: PointTable,
     pub number_of_throws: u8,
     pub dice_throw: DiceThrow,
+    pub kind: PlayerKind,
 }
 
 impl PointTable {
@@ -60,12 +68,34 @@ impl PointTable {
 }
 
 impl Player {
-    fn new() -> Self {
+    pub fn human() -> Self {
         Player {
             point_table: PointTable::new(),
             number_of_throws: 0,
             dice_throw: [Dice::new(0); 5],
+            kind: PlayerKind::Human,
         }
+    }
+
+    pub fn bot() -> Self {
+        Player {
+            kind: PlayerKind::Bot,
+            ..Player::human()
+        }
+    }
+
+    pub fn is_bot(&self) -> bool {
+        self.kind == PlayerKind::Bot
+    }
+
+    pub fn calculate_empty_categories(&self) -> Vec<usize> {
+        let mut empty_categories = Vec::new();
+        for category in 0..13 {
+            if self.point_table.points_thrown[category].is_none() {
+                empty_categories.push(category);
+            }
+        }
+        empty_categories
     }
 }
 
@@ -80,24 +110,33 @@ pub struct Game {
 pub trait YahtzeeGame {
     // new Game with a certain number of Players
     #[allow(clippy::new_ret_no_self)]
-    fn new(number: usize) -> Result<Game, &'static str>;
+    fn new(players_human: usize, players_bot: usize) -> Result<Game, &'static str>;
 
     fn winner(&self) -> Result<(Vec<usize>, usize), &'static str>;
 }
 
 impl YahtzeeGame for Game {
-    fn new(players: usize) -> Result<Game, &'static str> {
-        if !(2..=4).contains(&players) {
-            Err("Spieleranzahl wird nicht unterstützt. Nur 2-4 Spieler möglich")
-        } else {
-            let all_players = vec![Player::new(); players];
-            Ok(Self {
-                all_players: all_players.clone(),
-                current_player: all_players[0],
-                current_player_index: 0,
-                number_of_players: players,
-            })
+    fn new(players_human: usize, players_bot: usize) -> Result<Game, &'static str> {
+        let number = players_human + players_bot;
+        if !(2..=4).contains(&number) {
+            return Err("Spieleranzahl wird nicht unterstützt. Nur 2-4 Spieler möglich");
         }
+
+        let mut all_players = Vec::with_capacity(number);
+        for _ in 0..players_human {
+            all_players.push(Player::human());
+        }
+        for _ in 0..players_bot {
+            all_players.push(Player::bot());
+        }
+
+        let current_player = all_players[0].clone();
+        Ok(Self {
+            all_players,
+            current_player,
+            current_player_index: 0,
+            number_of_players: number,
+        })
     }
 
     // return: (player_index, total_points)
@@ -127,20 +166,9 @@ impl YahtzeeGame for Game {
     }
 }
 
-/*
-TODO: Hilfsfunktionen
-        - fn throw_dice(&self) -> Self; DONE - GETESTET, allen Würfeln, wird ein Wert zuegordnet
-        - fn next_player; DONE - GETESTET
-        - fn change_blocked_status_dice; DONE - blockieren getestet
-        - fn add_dice_point_table; DONE - ungetstet
-        - fn update_totals_point_table; DONE - ungetestet
-        - fn calculate_points; DONE - GETESTET vmtl korrekt
-        - fn potential_points supposed to (in gui) show you all the possible points across the table before selecting
-*/
-
 pub fn next_player(game: &mut Game) {
     game.current_player_index = (game.current_player_index + 1) % game.number_of_players;
-    game.current_player = game.all_players[game.current_player_index];
+    game.current_player = game.all_players[game.current_player_index].clone();
     game.current_player.number_of_throws = 0;
 }
 
@@ -155,6 +183,8 @@ pub fn throw_dice(game: &mut Game) {
                     rand::thread_rng().gen_range(1..=6);
             }
         }
+        // Synchronisiere current_player mit all_players
+        game.all_players[game.current_player_index] = game.current_player.clone();
     }
 }
 
@@ -175,7 +205,7 @@ pub fn add_dice_point_table(game: &mut Game, category: usize) -> &Game {
         game.current_player.dice_throw = [Dice::new(0); 5];
         game.current_player.point_table =
             update_totals_point_table(game.current_player.point_table);
-        game.all_players[game.current_player_index] = game.current_player;
+        game.all_players[game.current_player_index] = game.current_player.clone();
         game
     } else {
         game
