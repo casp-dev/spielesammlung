@@ -2,8 +2,11 @@ mod ai;
 mod game;
 
 use ai::get_best_move;
-use game::{Game, Stone};
+use game::Game;
 use game_core::Game as CoreGame;
+
+// Re-export Stone for platform UI
+pub use game::Stone;
 
 #[allow(dead_code)]
 fn main() -> eframe::Result<()> {
@@ -20,8 +23,8 @@ fn main() -> eframe::Result<()> {
 
 pub struct GoGame {
     game: Game,
-    status_message: String,
-    ai_stats_message: String,
+    pub status_message: String,
+    pub ai_stats_message: String,
 }
 
 impl Default for GoGame {
@@ -37,6 +40,98 @@ impl Default for GoGame {
 impl GoGame {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    //  API für UI-Layer
+
+    pub fn board_size(&self) -> usize {
+        self.game.board.size
+    }
+
+    pub fn get_stone(&self, x: usize, y: usize) -> Option<Stone> {
+        self.game.board.get(x, y)
+    }
+
+    pub fn current_turn(&self) -> Stone {
+        self.game.current_turn
+    }
+    pub fn is_game_over(&self) -> bool {
+        self.game.game_over
+    }
+
+    pub fn captured_stones(&self) -> (usize, usize) {
+        (self.game.captured_black, self.game.captured_white)
+    }
+
+    pub fn calculate_score(&self) -> (f32, f32) {
+        self.game.calculate_score()
+    }
+    pub fn place_stone(&mut self, x: usize, y: usize) -> Result<(), String> {
+        let result = self.game.place_stone(x, y);
+        if result.is_ok() {
+            self.status_message =
+                format!("Zug akzeptiert. {:?} ist am Zug.", self.game.current_turn);
+        } else if let Err(ref e) = result {
+            self.status_message = format!("Ungültiger Zug: {}", e);
+        }
+        result
+    }
+
+    pub fn pass(&mut self) {
+        self.game.pass();
+        if self.game.game_over {
+            let (b_score, w_score) = self.game.calculate_score();
+            self.status_message = format!(
+                "Spiel vorbei! Schwarz: {:.1}, Weiß: {:.1}",
+                b_score, w_score
+            );
+        } else {
+            self.status_message = format!("Gepasst. {:?} ist am Zug.", self.game.current_turn);
+        }
+    }
+
+    pub fn make_ai_move(&mut self) -> Option<(usize, usize)> {
+        if self.game.game_over {
+            return None;
+        }
+
+        let (best_move, stats) = get_best_move(&self.game, 1000);
+        if let Some((x, y)) = best_move {
+            match self.game.place_stone(x, y) {
+                Ok(_) => {
+                    self.status_message = format!(
+                        "AI spielt ({}, {}). {:?} ist am Zug.",
+                        x, y, self.game.current_turn
+                    );
+                    let top_moves_str: String = stats
+                        .top_moves
+                        .iter()
+                        .take(3)
+                        .map(|(m, v, s)| format!("({},{}):{}/{:.2}", m.0, m.1, v, s))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    self.ai_stats_message = format!(
+                        "MCTS: {} Iterationen, Top: {}",
+                        stats.iterations, top_moves_str
+                    );
+                    return Some((x, y));
+                }
+                Err(e) => {
+                    self.status_message = format!("AI Zug ungültig: {}", e);
+                    return None;
+                }
+            }
+        } else {
+            self.game.pass();
+            self.status_message = "AI passt.".to_owned();
+        }
+        None
+    }
+
+    pub fn restart(&mut self) {
+        self.game = Game::new(19);
+        self.status_message = "Spiel neugestartet. Schwarz ist am Zug.".to_owned();
+        self.ai_stats_message.clear();
     }
 }
 
