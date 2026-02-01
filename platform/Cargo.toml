@@ -3,6 +3,14 @@ name = "platform"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "platform"
+path = "src/main.rs"
+
+[[bin]]
+name = "platform-dioxus"
+path = "src/main_dioxus.rs"
+
 [dependencies]
 game_core = { path = "../game_core" }
 chess = { path = "../games/chess" }
