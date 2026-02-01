@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# alte ui
 egui = "0.29.1"
+
+# neue ui
+dioxus = { version = "0.6", features = ["desktop"] }
