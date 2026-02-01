@@ -9,6 +9,11 @@ chess = { path = "../games/chess" }
 go = { path = "../games/go" }
 kniffel = { path = "../games/kniffel" }
 minesweeper = { path = "../games/minesweeper" }
+
+# alte ui
 egui = "0.29.1"
 eframe = "0.29.1"
+
+# neue ui
+dioxus = { version = "0.6", features = ["desktop"] }
 
