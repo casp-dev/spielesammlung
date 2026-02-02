@@ -8,7 +8,7 @@ body {
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: #f3f3f3ff;
-  color: #eee;
+  color: #000000ff;
   min-height: 100vh;
 }
 
@@ -49,7 +49,7 @@ p {
 }
 
 .game-buttons button {
-  padding: 15px 30px;
+  padding: 10px 25px;
   font-size: 1.2rem;
   border: none;
   border-radius: 12px;

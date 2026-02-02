@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use go::GoGame;
+use go::{GoGame, Stone};
 
 #[derive(Clone, PartialEq)]
 enum GameType {
@@ -101,6 +101,38 @@ fn GoBoard(game: Signal<GoGame>) -> Element {
     let effective_width = board_px - 2.0 * padding;
     let cell_size = effective_width / (size as f64 - 1.0);
 
+    let mut hover_pos: Signal<Option<(usize, usize)>> = use_signal(|| None);
+
+    let on_click = move |evt: Event<MouseData>| {
+        let coords = evt.data.element_coordinates();
+        let x = ((coords.x - padding) / cell_size).round();
+        let y = ((coords.y - padding) / cell_size).round();
+
+        let dx = coords.x - (padding + x * cell_size);
+        let dy = coords.y - (padding + y * cell_size);
+        let dist = (dx * dx + dy * dy).sqrt();
+
+        if dist < cell_size * 0.45 && x >= 0.0 && y >= 0.0 && x < size as f64 && y < size as f64 {
+            let _ = game.write().place_stone(x as usize, y as usize);
+        }
+    };
+
+    let on_move = move |evt: Event<MouseData>| {
+        let coords = evt.data.element_coordinates();
+        let x = ((coords.x - padding) / cell_size).round();
+        let y = ((coords.y - padding) / cell_size).round();
+
+        let dx = coords.x - (padding + x * cell_size);
+        let dy = coords.y - (padding + y * cell_size);
+        let dist = (dx * dx + dy * dy).sqrt();
+
+        if dist < cell_size * 0.45 && x >= 0.0 && y >= 0.0 && x < size as f64 && y < size as f64 {
+            hover_pos.set(Some((x as usize, y as usize)));
+        } else {
+            hover_pos.set(None);
+        }
+    };
+
     rsx! {
         svg {
             width: "600",
@@ -108,32 +140,28 @@ fn GoBoard(game: Signal<GoGame>) -> Element {
             view_box: "0 0 600 600",
             class: "go-board-svg",
 
+            onclick: on_click,
+            onmousemove: on_move,
+            onmouseleave: move |_| hover_pos.set(None),
+
             // Hintergrund
             rect { x: "0", y: "0", width: "600", height: "600", fill: "#DEB887" }
 
             // grid
             for i in 0..size {
-                // horizontal
                 line {
-                    x1: "{padding}",
-                    y1: "{padding + i as f64 * cell_size}",
-                    x2: "{board_px - padding}",
-                    y2: "{padding + i as f64 * cell_size}",
-                    stroke: "black",
-                    stroke_width: "1"
+                    x1: "{padding}", y1: "{padding + i as f64 * cell_size}",
+                    x2: "{board_px - padding}", y2: "{padding + i as f64 * cell_size}",
+                    stroke: "black", stroke_width: "1"
                 }
-                // vertikal
                 line {
-                    x1: "{padding + i as f64 * cell_size}",
-                    y1: "{padding}",
-                    x2: "{padding + i as f64 * cell_size}",
-                    y2: "{board_px - padding}",
-                    stroke: "black",
-                    stroke_width: "1"
+                    x1: "{padding + i as f64 * cell_size}", y1: "{padding}",
+                    x2: "{padding + i as f64 * cell_size}", y2: "{board_px - padding}",
+                    stroke: "black", stroke_width: "1"
                 }
             }
 
-            // Punkte
+            // punkte
             if size == 19 {
                  {
                     let stars = vec![3, 9, 15];
@@ -150,6 +178,40 @@ fn GoBoard(game: Signal<GoGame>) -> Element {
                         }
                     }
                  }
+            }
+
+            // steine
+            {
+                let current_game = game.read();
+                rsx! {
+                    for x in 0..size {
+                        for y in 0..size {
+                            if let Some(stone) = current_game.get_stone(x, y) {
+                                circle {
+                                    cx: "{padding + x as f64 * cell_size}",
+                                    cy: "{padding + y as f64 * cell_size}",
+                                    r: "{cell_size * 0.48}",
+                                    fill: if stone == Stone::Black { "black" } else { "white" },
+                                    stroke: if stone == Stone::Black { "none" } else { "black" },
+                                    stroke_width: "1"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // hover-stein
+            if let Some((hx, hy)) = hover_pos() {
+                if game.read().get_stone(hx, hy).is_none() && !game.read().is_game_over() {
+                     circle {
+                        cx: "{padding + hx as f64 * cell_size}",
+                        cy: "{padding + hy as f64 * cell_size}",
+                        r: "{cell_size * 0.48}",
+                        fill: if game.read().current_turn() == Stone::Black { "rgba(0,0,0,0.5)" } else { "rgba(255,255,255,0.7)" },
+                        stroke: "none"
+                    }
+                }
             }
         }
     }
