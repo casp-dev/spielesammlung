@@ -4,6 +4,11 @@ use game_core::Game;
 use go::GoGame;
 use kniffel::KniffelGame;
 use minesweeper::MinesweeperGame;
+mod multiplayer;
+use multiplayer::Multiplayer;
+mod websocketclient;
+
+use std::error::Error;
 
 enum AppState {
     Menu,
@@ -57,11 +62,54 @@ impl eframe::App for PlatformApp {
     }
 }
 
-fn main() -> eframe::Result<()> {
-    let native_options = eframe::NativeOptions::default();
-    eframe::run_native(
-        "Spielesammlung",
-        native_options,
-        Box::new(|cc| Ok(Box::new(PlatformApp::new(cc)))),
-    )
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    println!("--- Multiplayer WebSocket Test ---");
+    println!("1) Create host");
+    println!("2) Connect to existing key");
+    println!("Choose (1 or 2):");
+
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    let stdin = BufReader::new(tokio::io::stdin());
+    let mut lines = stdin.lines();
+
+    let choice = lines
+        .next_line()
+        .await?
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+
+    let mut multiplayer = Multiplayer::new();
+
+    match choice.as_str() {
+        "1" => {
+            println!("Creating host…");
+            multiplayer.create_host().await?;
+        }
+        "2" => {
+            println!("Enter room key:");
+            let key = lines
+                .next_line()
+                .await?
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+
+            multiplayer.connect_with(key).await?;
+        }
+        _ => {
+            println!("Invalid choice");
+            return Ok(());
+        }
+    }
+
+    // IMPORTANT: keep process alive
+    println!("Connected. Type messages and press Enter.");
+
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    }
 }
+
+

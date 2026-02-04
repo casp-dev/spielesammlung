@@ -115,7 +115,7 @@ impl ChessGame {
         if self.state == "White has won"
             || self.state == "Black has won"
             || self.state == "Tie because of triple repetition"
-        { 
+        {
             return;
         }
         let frst = self.clicked_meeple.clone();
@@ -239,7 +239,7 @@ impl ChessGame {
                 &meeples.1,
             );
             if !can_hit.0.is_empty() {
-                can_move = true;        
+                can_move = true;
             }
 
             self.en_passant_pos = can_hit.1;
