@@ -132,18 +132,28 @@ impl CoreGame for GoGame {
 
         let rect = response.rect;
         let grid_size = self.game.board.size;
-        let cell_size = rect.width() / (grid_size as f32 + 1.0); // margin
+
+        // farbe
+        painter.rect_filled(
+            rect,
+            egui::Rounding::same(20.0),
+            egui::Color32::from_rgb(222, 184, 135),
+        );
+
+        let padding = board_size * 0.05;
+        let grid_rect = rect.shrink(padding);
+        let cell_size = grid_rect.width() / (grid_size as f32 - 1.0);
 
         // Raster
-        let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
+        let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(50, 50, 50));
         for i in 0..grid_size {
-            let pos = i as f32 * cell_size + cell_size;
+            let pos = i as f32 * cell_size;
 
             // verticale Linien
             painter.line_segment(
                 [
-                    rect.min + egui::vec2(pos, cell_size),
-                    rect.min + egui::vec2(pos, rect.height() - cell_size),
+                    grid_rect.min + egui::vec2(pos, 0.0),
+                    grid_rect.min + egui::vec2(pos, grid_rect.height()),
                 ],
                 stroke,
             );
@@ -151,22 +161,31 @@ impl CoreGame for GoGame {
             // Horizontale Linien
             painter.line_segment(
                 [
-                    rect.min + egui::vec2(cell_size, pos),
-                    rect.min + egui::vec2(rect.width() - cell_size, pos),
+                    grid_rect.min + egui::vec2(0.0, pos),
+                    grid_rect.min + egui::vec2(grid_rect.width(), pos),
                 ],
                 stroke,
             );
+        }
+
+        // hoshi punkte
+        if grid_size == 19 {
+            let stars = [3, 9, 15];
+            for &y in &stars {
+                for &x in &stars {
+                    let center =
+                        grid_rect.min + egui::vec2(x as f32 * cell_size, y as f32 * cell_size);
+                    painter.circle_filled(center, cell_size * 0.15, egui::Color32::BLACK);
+                }
+            }
         }
 
         // Steine
         for y in 0..grid_size {
             for x in 0..grid_size {
                 if let Some(stone) = self.game.board.get(x, y) {
-                    let center = rect.min
-                        + egui::vec2(
-                            x as f32 * cell_size + cell_size,
-                            y as f32 * cell_size + cell_size,
-                        );
+                    let center =
+                        grid_rect.min + egui::vec2(x as f32 * cell_size, y as f32 * cell_size);
                     let stone_radius = cell_size * 0.45;
 
                     // Schatten
@@ -201,35 +220,23 @@ impl CoreGame for GoGame {
 
         // Hover
         if let Some(pos) = response.hover_pos() {
-            if !self.game.game_over {
-                let relative_pos = pos - rect.min;
-                let x_f = (relative_pos.x / cell_size) - 1.0;
-                let y_f = (relative_pos.y / cell_size) - 1.0;
+            if !self.game.game_over && rect.contains(pos) {
+                let relative_pos = pos - grid_rect.min;
+                let x_f = relative_pos.x / cell_size;
+                let y_f = relative_pos.y / cell_size;
 
                 let x = x_f.round() as i32;
                 let y = y_f.round() as i32;
 
                 if x >= 0 && x < grid_size as i32 && y >= 0 && y < grid_size as i32 {
                     if self.game.board.get(x as usize, y as usize).is_none() {
-                        let center = rect.min
-                            + egui::vec2(
-                                x as f32 * cell_size + cell_size,
-                                y as f32 * cell_size + cell_size,
-                            );
+                        let center =
+                            grid_rect.min + egui::vec2(x as f32 * cell_size, y as f32 * cell_size);
                         let color = match self.game.current_turn {
-                            Stone::Black => egui::Color32::BLACK.linear_multiply(0.3),
-                            Stone::White => egui::Color32::WHITE.linear_multiply(0.35),
+                            Stone::Black => egui::Color32::from_black_alpha(100),
+                            Stone::White => egui::Color32::from_white_alpha(100),
                         };
-                        let stroke_color = match self.game.current_turn {
-                            Stone::Black => egui::Color32::WHITE.linear_multiply(0.35),
-                            Stone::White => egui::Color32::BLACK.linear_multiply(0.35),
-                        };
-                        painter.circle_filled(center, cell_size * 0.45, color);
-                        painter.circle_stroke(
-                            center,
-                            cell_size * 0.45,
-                            egui::Stroke::new(1.0, stroke_color),
-                        );
+                        painter.circle_filled(center, cell_size * 0.4, color);
                     }
                 }
             }
@@ -239,9 +246,9 @@ impl CoreGame for GoGame {
         if response.clicked() && !self.game.game_over {
             if let Some(pos) = response.interact_pointer_pos() {
                 // pos zu Brett-Koordinaten umrechnen
-                let relative_pos = pos - rect.min;
-                let x_f = (relative_pos.x / cell_size) - 1.0;
-                let y_f = (relative_pos.y / cell_size) - 1.0;
+                let relative_pos = pos - grid_rect.min;
+                let x_f = relative_pos.x / cell_size;
+                let y_f = relative_pos.y / cell_size;
 
                 let x = x_f.round() as i32;
                 let y = y_f.round() as i32;
