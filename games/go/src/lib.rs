@@ -167,21 +167,34 @@ impl CoreGame for GoGame {
                             x as f32 * cell_size + cell_size,
                             y as f32 * cell_size + cell_size,
                         );
-                    let color = match stone {
-                        Stone::Black => egui::Color32::BLACK,
-                        Stone::White => egui::Color32::WHITE,
-                    };
-                    let stroke_color = match stone {
-                        Stone::Black => egui::Color32::WHITE,
-                        Stone::White => egui::Color32::BLACK,
-                    };
+                    let stone_radius = cell_size * 0.45;
 
-                    painter.circle_filled(center, cell_size * 0.45, color);
-                    painter.circle_stroke(
-                        center,
-                        cell_size * 0.45,
-                        egui::Stroke::new(1.0, stroke_color),
+                    // Schatten
+                    painter.circle_filled(
+                        center + egui::vec2(2.0, 2.0),
+                        stone_radius,
+                        egui::Color32::from_black_alpha(50),
                     );
+
+                    match stone {
+                        Stone::Black => {
+                            painter.circle_filled(center, stone_radius, egui::Color32::BLACK);
+                            // Glanz
+                            painter.circle_filled(
+                                center - egui::vec2(stone_radius * 0.3, stone_radius * 0.3),
+                                stone_radius * 0.2,
+                                egui::Color32::from_white_alpha(30),
+                            );
+                        }
+                        Stone::White => {
+                            painter.circle_filled(center, stone_radius, egui::Color32::WHITE);
+                            painter.circle_stroke(
+                                center,
+                                stone_radius,
+                                egui::Stroke::new(1.0, egui::Color32::GRAY),
+                            );
+                        }
+                    };
                 }
             }
         }
