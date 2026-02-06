@@ -22,6 +22,7 @@ pub struct GoGame {
     game: Game,
     status_message: String,
     ai_stats_message: String,
+    ai_enabled: bool,
 }
 
 impl Default for GoGame {
@@ -30,6 +31,7 @@ impl Default for GoGame {
             game: Game::new(19), // Standard 19x19 brett
             status_message: "Spiel gestartet. Schwarz ist am Zug.".to_owned(),
             ai_stats_message: String::new(),
+            ai_enabled: false,
         }
     }
 }
@@ -67,37 +69,7 @@ impl CoreGame for GoGame {
             }
         }
 
-        if ui.button("AI Zug").clicked() && !self.game.game_over {
-            let (best_move, stats) = get_best_move(&self.game, 1000);
-            if let Some((x, y)) = best_move {
-                match self.game.place_stone(x, y) {
-                    Ok(_) => {
-                        self.status_message = format!(
-                            "AI spielt ({}, {}). {:?} ist am Zug.",
-                            x, y, self.game.current_turn
-                        );
-                        // show top moves from MCTS
-                        let top_moves_str: String = stats
-                            .top_moves
-                            .iter()
-                            .take(3)
-                            .map(|(m, v, s)| format!("({},{}):{}/{:.2}", m.0, m.1, v, s))
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        self.ai_stats_message = format!(
-                            "MCTS: {} Iterationen, Top: {}",
-                            stats.iterations, top_moves_str
-                        );
-                    }
-                    Err(e) => {
-                        self.status_message = format!("AI Zug ungültig: {}", e);
-                    }
-                }
-            } else {
-                self.game.pass();
-                self.status_message = "AI passt.".to_owned();
-            }
-        }
+        ui.checkbox(&mut self.ai_enabled, "AI Gegner");
 
         if ui.button("Spiel neustarten").clicked() {
             self.game = Game::new(19);
@@ -258,6 +230,40 @@ impl CoreGame for GoGame {
                         Ok(_) => {
                             self.status_message =
                                 format!("Zug akzeptiert. {:?} ist am Zug.", self.game.current_turn);
+
+                            // AI auto-play
+                            if self.ai_enabled && !self.game.game_over {
+                                let (best_move, stats) = get_best_move(&self.game, 1000);
+                                if let Some((x, y)) = best_move {
+                                    match self.game.place_stone(x, y) {
+                                        Ok(_) => {
+                                            self.status_message = format!(
+                                                "AI spielt ({}, {}). {:?} ist am Zug.",
+                                                x, y, self.game.current_turn
+                                            );
+                                            let top_moves_str: String = stats
+                                                .top_moves
+                                                .iter()
+                                                .take(3)
+                                                .map(|(m, v, s)| {
+                                                    format!("({},{}):{}/{:.2}", m.0, m.1, v, s)
+                                                })
+                                                .collect::<Vec<_>>()
+                                                .join(", ");
+                                            self.ai_stats_message = format!(
+                                                "MCTS: {} Iterationen, Top: {}",
+                                                stats.iterations, top_moves_str
+                                            );
+                                        }
+                                        Err(e) => {
+                                            self.status_message = format!("AI Zug ungültig: {}", e);
+                                        }
+                                    }
+                                } else {
+                                    self.game.pass();
+                                    self.status_message = "AI passt.".to_owned();
+                                }
+                            }
                         }
                         Err(e) => {
                             self.status_message = format!("Ungültiger Zug: {}", e);
