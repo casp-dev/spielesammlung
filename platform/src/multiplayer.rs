@@ -1,6 +1,6 @@
 use reqwest::Client;
 use tokio::io::AsyncBufReadExt;
-use tokio::io::{BufReader};
+use tokio::io::BufReader;
 
 use crate::websocketclient::WebSocketClient;
 
@@ -30,7 +30,7 @@ impl Multiplayer {
         println!("Connecting to URL: {}", self.key);
 
         //connects the webclient with the key
-        let ws_client = WebSocketClient::connect(&self.key)
+        let ws_client = WebSocketClient::connect(self.key.clone(),format!("wss://usersockets.luckperms.net/{}",self.key),Some((String::from("Origin"),String::from("https://luckperms.net"))))
             .await
             .expect("Failed to connect to WebSocket server");
 
@@ -63,6 +63,7 @@ impl Multiplayer {
         key.replace_range(key.len() - 2..key.len(), "");
         key
     }
+
 }
 
 // #[cfg(test)]
