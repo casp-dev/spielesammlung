@@ -7,6 +7,7 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
+use tokio_tungstenite::tungstenite::http::header::HeaderName;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{client::IntoClientRequest, Message},
@@ -15,17 +16,25 @@ use tokio_tungstenite::{
 
 pub struct WebSocketClient {
     sender: Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
+    pub url: String,
+    pub key: String,
 }
 
 impl WebSocketClient {
     /// Connect and start listening in a background task
-    pub async fn connect(room_key: &str) -> Result<Self, Box<dyn Error>> {
-        let mut request =
-            format!("wss://usersockets.luckperms.net/{room_key}").into_client_request()?;
+    pub async fn connect(
+        key: String,
+        url: String,
+        header_value: Option<(String, String)>,
+    ) -> Result<Self, Box<dyn Error>> {
+        let mut request = url.clone().into_client_request()?;
 
-        request
-            .headers_mut()
-            .insert("Origin", "https://luckperms.net".parse()?);
+        if let Some((name, value)) = header_value {
+            let name = HeaderName::from_bytes(name.as_bytes())?;
+            let value = value.parse()?;
+
+            request.headers_mut().insert(name, value);
+        }
 
         println!("Connecting…");
         let (ws_stream, _) = connect_async(request).await?;
@@ -56,7 +65,7 @@ impl WebSocketClient {
             }
         });
 
-        Ok(WebSocketClient { sender })
+        Ok(WebSocketClient { sender, url, key })
     }
 
     ///this fct sends the input to the dataset
@@ -72,49 +81,49 @@ impl WebSocketClient {
         Ok(())
     }
 }
-    // /// Connect and start listening in a background task
-    // pub async fn connect(room_key: &str,on_text: fn(String)) -> Result<Self, Box<dyn Error>> {
-    //     let mut request =
-    //         format!("wss://usersockets.luckperms.net/{room_key}").into_client_request()?;
+// /// Connect and start listening in a background task
+// pub async fn connect(room_key: &str,on_text: fn(String)) -> Result<Self, Box<dyn Error>> {
+//     let mut request =
+//         format!("wss://usersockets.luckperms.net/{room_key}").into_client_request()?;
 
-    //     //build a request the server understands
-    //     request
-    //         .headers_mut()
-    //         .insert("Origin", "https://luckperms.net".parse()?);
+//     //build a request the server understands
+//     request
+//         .headers_mut()
+//         .insert("Origin", "https://luckperms.net".parse()?);
 
-    //     println!("Connecting…");
-    //     let (ws_stream, _) = connect_async(request).await?;
-    //     let (write, mut read) = ws_stream.split();
+//     println!("Connecting…");
+//     let (ws_stream, _) = connect_async(request).await?;
+//     let (write, mut read) = ws_stream.split();
 
-    //     let sender = Arc::new(Mutex::new(write));
+//     let sender = Arc::new(Mutex::new(write));
 
-    //     //listen, hier schnittstelle zu game implementieren
-    //     tokio::spawn(async move {
-    //         while let Some(msg) = read.next().await {
-    //             match msg {
-    //                 Ok(Message::Text(text)) => {
-    //                     if text != "close" {
-    //                         println!("Received: {text}");
-    //                         on_text(text);
-    //                     } else {
-    //                         break;
-    //                     }
-    //                 }
-    //                 Ok(Message::Binary(bin)) => {
-    //                     println!("Received binary ({} bytes)", bin.len());
-    //                 }
-    //                 Ok(Message::Close(_)) => {
-    //                     println!("Connection closed");
-    //                     break;
-    //                 }
-    //                 Err(e) => {
-    //                     eprintln!("WebSocket error: {}", e);
-    //                     break;
-    //                 }
-    //                 _ => {}
-    //             }
-    //         }
-    //     });
+//     //listen, hier schnittstelle zu game implementieren
+//     tokio::spawn(async move {
+//         while let Some(msg) = read.next().await {
+//             match msg {
+//                 Ok(Message::Text(text)) => {
+//                     if text != "close" {
+//                         println!("Received: {text}");
+//                         on_text(text);
+//                     } else {
+//                         break;
+//                     }
+//                 }
+//                 Ok(Message::Binary(bin)) => {
+//                     println!("Received binary ({} bytes)", bin.len());
+//                 }
+//                 Ok(Message::Close(_)) => {
+//                     println!("Connection closed");
+//                     break;
+//                 }
+//                 Err(e) => {
+//                     eprintln!("WebSocket error: {}", e);
+//                     break;
+//                 }
+//                 _ => {}
+//             }
+//         }
+//     });
 
-    //     Ok(WebSocketClient { sender })
-    // }
+//     Ok(WebSocketClient { sender })
+// }
