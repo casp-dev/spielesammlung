@@ -1259,6 +1259,12 @@ name = "game_core"
 version = "0.1.0"
 dependencies = [
  "egui",
+ "futures-util",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "url",
 ]
 
 [[package]]
