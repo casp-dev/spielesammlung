@@ -7,6 +7,12 @@ use minesweeper::MinesweeperGame;
 
 use egui::{Color32, RichText, Vec2};
 
+#[derive(PartialEq)]
+enum AppTheme {
+    Dark,
+    Light,
+}
+
 enum AppState {
     Menu,
     Playing(Box<dyn Game>),
@@ -14,12 +20,14 @@ enum AppState {
 
 struct PlatformApp {
     state: AppState,
+    theme: AppTheme,
 }
 
 impl PlatformApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Self {
             state: AppState::Menu,
+            theme: AppTheme::Dark, // Default theme is dark
         }
     }
 }
@@ -27,16 +35,50 @@ impl PlatformApp {
 impl eframe::App for PlatformApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.state {
+
             AppState::Menu => {
 
-                    ui.vertical_centered(|ui| {
+            match self.theme {
+                AppTheme::Light => {
+                ctx.set_visuals(egui::Visuals::light());
+                ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Light));
+                }
+
+                AppTheme::Dark => {
+                ctx.set_visuals(egui::Visuals::dark());
+                ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Dark));
+                }
+            }
+
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+
+                    if ui.selectable_label(self.theme == AppTheme::Light, "Light").clicked() {
+                        self.theme = AppTheme::Light;
+                    }
+
+                    if ui.selectable_label(self.theme == AppTheme::Dark, "Dark").clicked() {
+                        self.theme = AppTheme::Dark;
+                    }
+                });
+            });
+
+            ui.separator();
+
+            ui.vertical_centered(|ui| {
+
+                    let grid_hight = 150.0 * 2.0 + 20.0 + 80.0; // 2 Buttons + Spacing + Heading
+                    let app_center_hight = (ui.available_height() - (grid_hight)) / 2.0; // find middle of the app window
+                    ui.add_space(app_center_hight.max(0.0)); // move the grid form the top to the middle
+
                     ui.heading("Wähle ein Spiel:");
                     ui.add_space(20.0);
 
                 ui.horizontal(|ui| {
+
                     let grid_width = 200.0 * 2.0 + 20.0; // 2 Buttons + Spacing
-                    let app_center = (ui.available_width() - (grid_width)) / 2.0; // find middle of the app window
-                    ui.add_space(app_center.max(0.0)); // move the grid from the left to the middle
+                    let app_center_width = (ui.available_width() - (grid_width)) / 2.0; // find middle of the app window
+                    ui.add_space(app_center_width.max(0.0)); // move the grid from the left to the middle
 
                     egui::Grid::new("menu_grid")
                         .spacing([20.0, 20.0])
@@ -46,7 +88,9 @@ impl eframe::App for PlatformApp {
                                 RichText::new("♛ Schach ♚").size(30.0).color(Color32::WHITE).strong();
                             let button_chess = egui::Button::new(text_chess)
                                 .min_size(Vec2::new(200.0, 150.0))
-                                .fill(Color32::LIGHT_BLUE);
+                                .rounding(10.0)
+                                .fill(Color32::LIGHT_BLUE)
+                                .stroke(egui::Stroke::NONE);
                             if ui.add(button_chess).clicked() {
                                 self.state = AppState::Playing(Box::new(ChessGame::new()));
                             }
@@ -54,7 +98,9 @@ impl eframe::App for PlatformApp {
                             let text_go = RichText::new("☯ Go ☯").size(30.0).color(Color32::WHITE).strong(); // Go button
                             let button_go = egui::Button::new(text_go)
                                 .min_size(Vec2::new(200.0, 150.0))
-                                .fill(Color32::DARK_BLUE);
+                                .rounding(10.0)
+                                .fill(Color32::DARK_BLUE)
+                                .stroke(egui::Stroke::NONE);
                             if ui.add(button_go).clicked() {
                                 self.state = AppState::Playing(Box::new(GoGame::new()));
                             }
@@ -65,7 +111,9 @@ impl eframe::App for PlatformApp {
                                 RichText::new("🎲 Kniffel 🎲").size(30.0).color(Color32::WHITE).strong();
                             let button_kniffel = egui::Button::new(text_kniffel)
                                 .min_size(Vec2::new(200.0, 150.0))
-                                .fill(Color32::DARK_BLUE);
+                                .rounding(10.0)
+                                .fill(Color32::DARK_BLUE)
+                                .stroke(egui::Stroke::NONE);
                             if ui.add(button_kniffel).clicked() {
                                 self.state = AppState::Playing(Box::new(KniffelGame::new()));
                             }
@@ -76,14 +124,16 @@ impl eframe::App for PlatformApp {
                                 .strong();
                             let button_minesweeper = egui::Button::new(text_minesweeper)
                                 .min_size(Vec2::new(200.0, 150.0))
-                                .fill(Color32::LIGHT_BLUE);
+                                .rounding(10.0)
+                                .fill(Color32::LIGHT_BLUE)
+                                .stroke(egui::Stroke::NONE);
                             if ui.add(button_minesweeper).clicked() {
                                 self.state = AppState::Playing(Box::new(MinesweeperGame::new()));
                             }
-                        });
+                    });
                 });
-                 });
-            }
+            });
+        }
 
             AppState::Playing(game) => {
                 if ui.button("Zurück zum Menü").clicked() {
@@ -98,7 +148,12 @@ impl eframe::App for PlatformApp {
 }
 
 fn main() -> eframe::Result<()> {
-    let native_options = eframe::NativeOptions::default();
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([600.0, 500.0]) // Set the initial window size of the Platform Window
+            .with_min_inner_size([600.0, 500.0]), // Set the minimum window size of the Platform Window
+        ..Default::default()
+    };
     eframe::run_native(
         "Spielesammlung",
         native_options,
