@@ -9,10 +9,6 @@ A player selects a cell to open it. If a player opens a mined cell, the game end
 In some versions of the game when the number of adjacent mines is equal to the number of adjacent flagged cells, all adjacent non-flagged unopened cells will be opened, a process known as chording.
 */
 
-// TODO: bombe verschieben
-// BUG: wenn flage im Bereich ist der mit Flood fill geöffnet wird ist die flagge WEG
-//...
-
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
