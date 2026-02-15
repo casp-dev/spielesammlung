@@ -106,7 +106,7 @@ pub fn is_action_allowed(game: &Game, action_kind: &ActionKind) -> bool {
 }
 
 #[allow(unused_parens)]
-pub fn flag(game: &mut Game, action_kind: &ActionKind) {
+pub fn flag(game: &mut Game, action_kind: &ActionKind) { // flag and unflag with the same action
     if let ActionKind::Flag(x, y) = action_kind {
         if (game.board[*y][*x].cell_state == CellState::Unopened) {
             if (game.flag_count > 0) {
@@ -124,9 +124,43 @@ pub fn flag(game: &mut Game, action_kind: &ActionKind) {
 }
 
 #[allow(unused_parens)]
+pub fn cell_without_bomb (game: &mut Game) -> &mut Cell {
+
+    let column = game.board[0].len(); // X
+    let rows = game.board.len(); // Y
+
+    let cell_count = column * rows;
+
+    let random_number = rand::thread_rng().gen_range(0..cell_count);
+
+    let cell_without_bomb_y = random_number / column;
+    let cell_without_bomb_x = random_number % column;
+
+    if(game.board[cell_without_bomb_y][cell_without_bomb_x].cell_content == CellContent::Mine) {
+        return cell_without_bomb(game);
+    }
+    return &mut game.board[cell_without_bomb_y][cell_without_bomb_x];
+}
+
+pub fn move_bomb_away(game: &mut Game, bomb_x: usize, bomb_y: usize) {
+    cell_without_bomb(game).cell_content = CellContent::Mine;
+    game.board[bomb_y][bomb_x].cell_content = CellContent::Blank;
+    set_blancs_and_numbers(game);
+}
+
+#[allow(unused_parens)]
 pub fn open(game: &mut Game, action_kind: &ActionKind) {
     if let ActionKind::Open(x, y) = action_kind {
-        if game.board[*y][*x].cell_state == CellState::Opened {
+
+        if (game.board[*y][*x].cell_content == CellContent::Mine && game.opened_counter == 0) {
+            let bomb_x = *x;
+            let bomb_y = *y;
+            move_bomb_away(game, bomb_x, bomb_y);
+            open(game, action_kind);
+            return;
+        }
+
+        if (game.board[*y][*x].cell_state == CellState::Opened) { 
             return;
         }
 
@@ -170,9 +204,16 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
                     }
 
                     if let CellContent::Number(_) = game.board[ny][nx].cell_content {
+                        if (game.board[ny][nx].cell_state == CellState::Flagged) {
+                            flag(game, &ActionKind::Flag((nx), (ny)));
+                        }
                         open(game, &ActionKind::Open((nx), (ny)));
                     }
+
                     if let CellContent::Blank = game.board[ny][nx].cell_content {
+                        if (game.board[ny][nx].cell_state == CellState::Flagged) {
+                            flag(game, &ActionKind::Flag((nx), (ny)));
+                        }
                         open(game, &ActionKind::Open((nx), (ny)));
                     }
                 }
