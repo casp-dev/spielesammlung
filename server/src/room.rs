@@ -90,6 +90,11 @@ impl RoomManager {
             room.broadcast(message, exclude);
         }
     }
+
+    pub async fn player_count(&self, room_id: &str) -> usize {
+        let rooms = self.rooms.read().await;
+        rooms.get(room_id).map(|r| r.players.len()).unwrap_or(0)
+    }
 }
 
 fn generate_room_id() -> String {
