@@ -2,11 +2,8 @@ use crate::calculate_points;
 use crate::change_blocked_status_dice;
 use crate::kniffel;
 use crate::kniffel::add_dice_point_table;
-use crate::kniffel::next_player;
 use crate::kniffel::throw_dice;
-use crate::Dice;
 use crate::DiceThrow;
-use crate::Game;
 use crate::Rating::*;
 
 #[derive(PartialEq)]
@@ -67,8 +64,6 @@ pub fn achieve_best_category(game: &mut kniffel::Game) {
                     } else if !dice_equal_at[1].is_empty() {
                         block_dice(game, dice_equal_at[1].clone());
                     }
-
-                    return;
                 }
                 Rating::Straight => {
                     for straight in [10, 9] {
@@ -80,15 +75,12 @@ pub fn achieve_best_category(game: &mut kniffel::Game) {
                         }
                     }
                     block_straight(game);
-                    return;
                 }
                 Rating::FullHouse => {
                     if calculate_points(8, game.current_player.dice_throw) != 0 {
                         *game = add_dice_point_table(game, 8).clone();
-                        return;
                     } else {
-                        block_FullHouse(game);
-                        return;
+                        block_full_house(game);
                     }
                 }
                 Sacrifice => {
@@ -97,7 +89,6 @@ pub fn achieve_best_category(game: &mut kniffel::Game) {
                         find_max_points(game.current_player.dice_throw, empty_categories)
                     {
                         *game = add_dice_point_table(game, category).clone();
-                        return;
                     }
                 }
             }
@@ -115,12 +106,8 @@ pub fn rate_throw(empty_cat: Vec<usize>, dice_throw: DiceThrow) -> Rating {
     for double in [6, 7, 11] {
         if empty_cat.contains(&double) {
             free_cat.push(double);
-            //wir haben bereits mindestens 3er Pasch
-            if calculate_points(double, dice_throw) != 0 {
-                return Double;
-            }
-            //wir haben bereits min. 2 gleiche Würfel, also versuchen wir größeren Pasch
-            else if two_same(dice_throw) {
+            //wir haben bereits mindestens 3er Pasch || bereits min. 2 gleiche Würfel, also versuchen wir größeren Pasch
+            if calculate_points(double, dice_throw) != 0 || two_same(dice_throw) {
                 return Double;
             }
         }
@@ -136,7 +123,7 @@ pub fn rate_throw(empty_cat: Vec<usize>, dice_throw: DiceThrow) -> Rating {
             return Straight;
         }
     }
-    return Sacrifice;
+    Sacrifice
 }
 
 pub fn bot_game_turn(game: &mut kniffel::Game) {
@@ -223,10 +210,10 @@ pub fn block_straight(game: &mut kniffel::Game) {
     block_dice(game, longest_seq);
 }
 
-pub fn block_FullHouse(game: &mut kniffel::Game) {
+pub fn block_full_house(game: &mut kniffel::Game) {
     let equal_dice = two_or_more_equal_at(game.current_player.dice_throw);
     let mut first_match = equal_dice[0].clone();
-    let mut sec_match = equal_dice[1].clone();
+    let sec_match = equal_dice[1].clone();
 
     //wenn viererpash dann werden nur 3 gesichert; potenziell TODO: Fix für Kniffel
     if first_match.len() > 3 {
@@ -241,7 +228,7 @@ pub fn block_FullHouse(game: &mut kniffel::Game) {
     }
 }
 
-pub fn find_longest_sequence(mut dice_throw: DiceThrow) -> Vec<usize> {
+pub fn find_longest_sequence(dice_throw: DiceThrow) -> Vec<usize> {
     let mut longest_seq = Vec::new();
     let mut current_seq = Vec::new();
     //dice_roll ist vec mit augen
@@ -272,9 +259,9 @@ pub fn find_longest_sequence(mut dice_throw: DiceThrow) -> Vec<usize> {
 pub fn remove_duplicates(dice_throw: DiceThrow) -> Vec<u8> {
     let mut unique_eyes = Vec::new();
 
-    for index in 0..5 {
-        if !unique_eyes.contains(&dice_throw[index].eyes) {
-            unique_eyes.push(dice_throw[index].eyes);
+    for dice in &dice_throw {
+        if !unique_eyes.contains(&dice.eyes) {
+            unique_eyes.push(dice.eyes);
         }
     }
     unique_eyes
@@ -296,12 +283,9 @@ pub fn find_max_points(dice_throw: DiceThrow, empty_categories: Vec<usize>) -> O
     let mut max_points = 0;
     let mut max_category = 99;
     for category in empty_categories {
-        print!("category: {} \n", category);
         if calculate_points(category, dice_throw) >= max_points {
             max_points = calculate_points(category, dice_throw);
             max_category = category;
-        } else {
-            print!("punktzahl: {}\n", calculate_points(category, dice_throw));
         }
     }
     Some(max_category)

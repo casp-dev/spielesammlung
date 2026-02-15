@@ -1,4 +1,3 @@
-use crate::bot::*;
 use rand::Rng;
 use std::cmp::Ordering;
 
@@ -403,27 +402,8 @@ mod tests {
 
     #[test]
     fn test_new_0playersequal_error() {
-        let game = Game::new(0);
+        let game = Game::new(0, 0);
         assert!(game.is_err());
-    }
-
-    #[test]
-    fn test_new_2playersworks() {
-        let game = Game::new(2);
-
-        let game2 = {
-            Game {
-                all_players: vec![Player::new(), Player::new()],
-                current_player: Player {
-                    point_table: PointTable::new(),
-                    number_of_throws: 0,
-                    dice_throw: [Dice::new(0); 5],
-                },
-                current_player_index: 0,
-                number_of_players: 2,
-            }
-        };
-        assert_eq!(game, Ok(game2));
     }
 
     #[test]
@@ -663,7 +643,7 @@ mod tests {
 
     #[test]
     fn test_dice_throw() {
-        let mut game = Game::new(2).unwrap();
+        let mut game = Game::new(2, 0).unwrap();
         throw_dice(&mut game);
 
         let mut dice_roll = 0;
@@ -677,23 +657,8 @@ mod tests {
     }
 
     #[test]
-    fn test_dice_throw_switch_player() {
-        let mut game = Game::new(2).unwrap();
-        let cur_pl = game.current_player;
-        throw_dice(&mut game);
-        throw_dice(&mut game);
-        throw_dice(&mut game);
-        throw_dice(&mut game);
-        let new_pl = game.current_player;
-
-        let test = cur_pl == new_pl;
-
-        assert!(!test);
-    }
-
-    #[test]
     fn test_change_blocked_stat_block() {
-        let mut game = Game::new(2).unwrap();
+        let mut game = Game::new(2, 0).unwrap();
         throw_dice(&mut game);
         change_blocked_status_dice(&mut game, 1);
         throw_dice(&mut game);

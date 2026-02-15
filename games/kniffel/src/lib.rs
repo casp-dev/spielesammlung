@@ -225,12 +225,9 @@ impl KniffelGame {
 impl KniffelGame {
     fn process_bot_turns(&mut self) {
         while self.game.current_player.is_bot() {
-            print!("Bot {} ist dran!\n", self.game.current_player_index + 1);
             let bot_index = self.game.current_player_index;
 
             bot_game_turn(&mut self.game);
-
-            print!("Bot {} ist fertig\n", bot_index + 1);
 
             //aktualisiere player buttons; finde neu gefüllte Kategorie
             for cat in 0..13 {
