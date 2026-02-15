@@ -98,6 +98,7 @@ impl Game for MinesweeperGame {
             }
 
             GameState::Playing(game) => {
+
                 let height = game.board.len();
                 let width = game.board[0].len();
 
@@ -123,9 +124,19 @@ impl Game for MinesweeperGame {
                             for x in 0..width {
                                 if (game.board[y][x].cell_state == CellState::Unopened) {
                                     // unopened Cell
-                                    let button =
-                                        egui::Button::new("").min_size(Vec2::new(25.0, 25.0));
+
+                                    // FOR TESTING: Uncomment the next 6 lines and comment out the line after to show mines
+                                    // let text = if game.board[y][x].cell_content == CellContent::Mine {
+                                    //     "💣"
+                                    // } else {
+                                    //     ""
+                                    // };
+                                    // let button = egui::Button::new(text).min_size(Vec2::new(25.0, 25.0));
+
+                                    let button = egui::Button::new("").min_size(Vec2::new(25.0, 25.0));
+                                    
                                     let click_or_flag = ui.add(button);
+
                                     if click_or_flag.clicked() {
                                         MSGame::apply_action(game, ActionKind::Open(x, y));
                                         // println!("Opened cell {}:{}", x, y);
@@ -197,8 +208,8 @@ impl Game for MinesweeperGame {
                 let mut re_choose_difficulty = false;
                 let mut retry = false;
 
-                ui.vertical_centered(|ui| {
-                    // copy of the board in the backround
+                ui.vertical_centered(|ui| { // copy of the board in the backround
+                    
                     ui.horizontal(|ui| {
                         if ui.button("🔙 Zurück").clicked() {
                             re_choose_difficulty = true;
