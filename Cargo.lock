@@ -1781,7 +1781,7 @@ dependencies = [
  "eframe",
  "egui",
  "game_core",
- "rand",
+ "rand 0.8.5",
 ]
 
 [[package]]
