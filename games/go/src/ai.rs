@@ -237,7 +237,7 @@ fn get_sensible_moves(game: &Game) -> Vec<(usize, usize)> {
 }
 
 pub fn get_best_move(game: &Game, _iterations: usize) -> (Option<(usize, usize)>, MCTSStats) {
-    let time_budget = Duration::from_millis(1500);
+    let time_budget = Duration::from_millis(2000);
     let start_time = Instant::now();
 
     let root_player = game.current_turn;
@@ -391,8 +391,8 @@ pub fn get_best_move(game: &Game, _iterations: usize) -> (Option<(usize, usize)>
 
     stats.sort_by(|a, b| b.1.cmp(&a.1));
 
-    println!("\n=== MCTS (Root {:?}) ===", root_player);
-    println!("Time: 1.5s | Iterations: {}", loops);
+    println!("\nMCTS (Root {:?})", root_player);
+    println!("Time: 2s | Iterations: {}", loops);
     println!("Top 5 Moves:");
     println!("Move\t\tVisits\tScore");
     for (m, v, s) in stats.iter().take(5) {
