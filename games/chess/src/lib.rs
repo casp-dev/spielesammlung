@@ -1,12 +1,22 @@
 use std::{collections::HashMap, usize};
 
 use egui::{Color32, RichText, Ui};
-use game_core::Game;
+use game_core::{Game, MultiplayerGame};
+
+use futures_util::stream::{SplitSink, SplitStream};
+
+use tokio::net::TcpStream;
+use tokio::sync::Mutex;
+
+use tokio_tungstenite::{
+    tungstenite::Message,
+    MaybeTlsStream, WebSocketStream,
+};
 
 mod engine;
 mod meeples;
 use crate::{
-    draw::{draw_board, draw_start_window},
+    draw::{draw_board},
     engine::{calculate_board, Engine},
     meeples::{opposite_color, Color, Meeple, Type},
 };
@@ -26,6 +36,8 @@ pub struct ChessGame {
     pawn_mutate: bool,
     engine: Option<Engine>,
     possible_bot_level: u16,
+    sender:Option<std::sync::Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>>,
+    reader: Option<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>
 }
 
 impl ChessGame {
@@ -85,6 +97,8 @@ impl ChessGame {
             pawn_mutate: false,
             engine: None,
             possible_bot_level: 3,
+            sender: None,
+            reader: None
         }
     }
 
@@ -401,7 +415,51 @@ impl Game for ChessGame {
             }
             draw_board(ui, self);
         } else {
-            draw_start_window(ui, self);
+            self.multipalyer_ui(ui,true,false);
         }
     }
+}
+
+impl MultiplayerGame for ChessGame {
+
+    fn on_text(&mut self, str: String) {
+        println!("{}",str);
+    }
+
+    fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16>{
+        self.state = String::from("Play Local");
+        player_counter
+    }
+
+    fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16>{
+        self.state = String::from("Play vs Bot");
+        self.engine = Some(Engine::new(bot_level.unwrap(), Color::Black));
+        bot_level
+    }
+
+    fn multiplayer_button_clicked(&mut self) {
+        println!("Multiplayer")
+    }
+
+    fn set_reader(&mut self, reader: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>) {
+        self.reader = Some(reader)
+    }
+
+    fn set_sender(
+            &mut self,
+            sender: std::sync::Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
+        ) {
+        self.sender = Some(sender);
+    }
+
+    fn player_count_slider(&mut self,ui: &mut Ui) -> u16 {
+        self.ui(ui);
+        0
+    }
+
+    fn bot_level_slider(&mut self,ui: &mut Ui) -> u16 {
+        ui.add(egui::Slider::new(&mut self.possible_bot_level, 1..=7).text("What level for the bot?"));
+        self.possible_bot_level
+    }
+
 }

@@ -22,7 +22,7 @@ pub trait Game {
 }
 
 #[allow(clippy::needless_async)]
-pub trait MultiplayerGame {
+pub trait MultiplayerGame: Game {
     fn on_text(&mut self, str: String);
     fn set_sender(
         &mut self,
@@ -88,4 +88,47 @@ pub trait MultiplayerGame {
 
         Ok(())
     }
+
+    fn multipalyer_ui(&mut self, ui: &mut Ui, bot_level: bool, player_count: bool) {
+        let available = ui.available_size();
+
+        let button_width = available.x * 0.5;
+        let button_height = available.y * 0.1;
+
+        let play_local =
+            egui::Button::new("Play Local").min_size(egui::vec2(button_width, button_height));
+        let play_vs_bot =
+            egui::Button::new("Play vs Bot").min_size(egui::vec2(button_width, button_height));
+        let play_multiplayer =
+            egui::Button::new("Play Online").min_size(egui::vec2(button_width, button_height));
+        if player_count {
+            let count = self.player_count_slider(ui);
+            if ui.add(play_local).clicked() {
+                self.local_button_clicked(Some(count));
+            }
+        } else {
+            if ui.add(play_local).clicked() {
+                self.local_button_clicked(None);
+            }
+        }
+        if bot_level {
+            let level = self.bot_level_slider(ui);
+            if ui.add(play_vs_bot).clicked() {
+                self.bot_button_clicked(Some(level));
+            }
+        } else {
+            if ui.add(play_vs_bot).clicked() {
+                self.bot_button_clicked(None);
+            }
+        }
+        if ui.add(play_multiplayer).clicked() {
+            self.multiplayer_button_clicked();
+        }
+    }
+
+    fn player_count_slider(&mut self,ui: &mut Ui) -> u16;
+    fn bot_level_slider(&mut self,ui: &mut Ui) -> u16;
+    fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16>;
+    fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16>;
+    fn multiplayer_button_clicked(&mut self);
 }
