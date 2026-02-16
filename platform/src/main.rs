@@ -91,7 +91,16 @@ impl eframe::App for PlatformApp {
                                 .rounding(10.0)
                                 .fill(Color32::LIGHT_BLUE)
                                 .stroke(egui::Stroke::NONE);
-                            if ui.add(button_chess).clicked() {
+                            let response = ui.add(button_chess);
+                            if response.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                ui.painter().rect_stroke(
+                                    response.rect.expand(2.0),
+                                    12.0,
+                                    egui::Stroke::new(2.0, Color32::YELLOW)
+                                );
+                            }
+                            if response.clicked() {
                                 self.state = AppState::Playing(Box::new(ChessGame::new()));
                             }
 
@@ -101,7 +110,16 @@ impl eframe::App for PlatformApp {
                                 .rounding(10.0)
                                 .fill(Color32::DARK_BLUE)
                                 .stroke(egui::Stroke::NONE);
-                            if ui.add(button_go).clicked() {
+                            let response = ui.add(button_go);
+                            if response.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                ui.painter().rect_stroke(
+                                    response.rect.expand(2.0),
+                                    12.0,
+                                    egui::Stroke::new(2.0, Color32::YELLOW)
+                                );
+                            }
+                            if response.clicked() {
                                 self.state = AppState::Playing(Box::new(GoGame::new()));
                             }
 
@@ -114,7 +132,16 @@ impl eframe::App for PlatformApp {
                                 .rounding(10.0)
                                 .fill(Color32::DARK_BLUE)
                                 .stroke(egui::Stroke::NONE);
-                            if ui.add(button_kniffel).clicked() {
+                            let response = ui.add(button_kniffel);
+                            if response.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                ui.painter().rect_stroke(
+                                    response.rect.expand(2.0),
+                                    12.0,
+                                    egui::Stroke::new(2.0, Color32::YELLOW)
+                                );
+                            }
+                            if response.clicked() {
                                 self.state = AppState::Playing(Box::new(KniffelGame::new()));
                             }
 
@@ -127,7 +154,16 @@ impl eframe::App for PlatformApp {
                                 .rounding(10.0)
                                 .fill(Color32::LIGHT_BLUE)
                                 .stroke(egui::Stroke::NONE);
-                            if ui.add(button_minesweeper).clicked() {
+                            let response = ui.add(button_minesweeper);
+                            if response.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                ui.painter().rect_stroke(
+                                    response.rect.expand(2.0),
+                                    12.0,
+                                    egui::Stroke::new(2.0, Color32::YELLOW)
+                                );
+                            }
+                            if response.clicked() {
                                 self.state = AppState::Playing(Box::new(MinesweeperGame::new()));
                             }
                     });
