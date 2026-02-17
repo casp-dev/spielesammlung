@@ -627,13 +627,8 @@ name = "chess"
 version = "0.1.0"
 dependencies = [
  "egui",
- "futures-util",
  "game_core",
- "reqwest",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "url",
+ "tungstenite",
 ]
 
 [[package]]
@@ -1266,10 +1261,12 @@ version = "0.1.0"
 dependencies = [
  "egui",
  "futures-util",
+ "http 0.2.12",
  "reqwest",
  "serde_json",
  "tokio",
  "tokio-tungstenite",
+ "tungstenite",
  "url",
 ]
 

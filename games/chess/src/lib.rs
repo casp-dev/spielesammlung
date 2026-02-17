@@ -3,15 +3,9 @@ use std::{collections::HashMap, usize};
 use egui::{Color32, RichText, Ui};
 use game_core::{Game, MultiplayerGame};
 
-use futures_util::stream::{SplitSink, SplitStream};
-
-use tokio::net::TcpStream;
-use tokio::sync::Mutex;
-
-use tokio_tungstenite::{
-    tungstenite::Message,
-    MaybeTlsStream, WebSocketStream,
-};
+use tungstenite::{WebSocket};
+use tungstenite::stream::MaybeTlsStream;
+use std::net::TcpStream;
 
 mod engine;
 mod meeples;
@@ -36,8 +30,9 @@ pub struct ChessGame {
     pawn_mutate: bool,
     engine: Option<Engine>,
     possible_bot_level: u16,
-    sender:Option<std::sync::Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>>,
-    reader: Option<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>
+    client: Option<WebSocket<MaybeTlsStream<TcpStream>>>,
+    multiplayer: bool,
+    room_key: String,
 }
 
 impl ChessGame {
@@ -97,8 +92,9 @@ impl ChessGame {
             pawn_mutate: false,
             engine: None,
             possible_bot_level: 3,
-            sender: None,
-            reader: None
+            client: None,
+            multiplayer: false,
+            room_key: String::new(),
         }
     }
 
@@ -437,19 +433,20 @@ impl MultiplayerGame for ChessGame {
         bot_level
     }
 
-    fn multiplayer_button_clicked(&mut self) {
-        println!("Multiplayer")
+    fn set_client(&mut self, client: WebSocket<MaybeTlsStream<TcpStream>>) {
+        self.client = Some(client);
     }
 
-    fn set_reader(&mut self, reader: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>) {
-        self.reader = Some(reader)
+    fn get_client(&mut self) -> &mut WebSocket<MaybeTlsStream<TcpStream>> {
+        self.client.as_mut().unwrap()
     }
 
-    fn set_sender(
-            &mut self,
-            sender: std::sync::Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>,
-        ) {
-        self.sender = Some(sender);
+    fn get_room_key_text(&mut self) -> &mut String {
+        &mut self.room_key
+    }
+
+    fn set_room_key_text(&mut self, text: String) {
+        self.room_key = text;
     }
 
     fn player_count_slider(&mut self,ui: &mut Ui) -> u16 {
@@ -460,6 +457,10 @@ impl MultiplayerGame for ChessGame {
     fn bot_level_slider(&mut self,ui: &mut Ui) -> u16 {
         ui.add(egui::Slider::new(&mut self.possible_bot_level, 1..=7).text("What level for the bot?"));
         self.possible_bot_level
+    }
+
+    fn start_multiplayer_game(&mut self) {
+        
     }
 
 }
