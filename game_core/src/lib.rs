@@ -1,11 +1,12 @@
 use egui::Ui;
 
 use std::error::Error;
-use std::net::TcpStream;
-use tungstenite::client::IntoClientRequest;
-use tungstenite::http::header::HeaderName;
-use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{connect, Message, WebSocket};
+use tungstenite::client::IntoClientRequest;
+use tungstenite::stream::MaybeTlsStream;
+use tungstenite::http::header::HeaderName;
+use serde_json::Value;
+use std::net::TcpStream;
 
 pub trait Game {
     fn name(&self) -> &str;
@@ -49,13 +50,34 @@ pub trait MultiplayerGame: Game {
         Ok(())
     }
 
-    fn wait_one_reply(&mut self) {
+    fn wait_one_reply(&mut self) -> String{
+       match self.get_client().read() {
+            Ok(Message::Text(txt)) => {
+                txt
+            }
+            Ok(_) => {
+                eprintln!("Received non-text message");
+                String::new()
+            }
+            Err(e) => {
+                eprintln!("WebSocket error: {}", e);
+                String::new()
+            }
+        }
+    }
+
+    fn wait_one_reply_game(&mut self){
         match self.get_client().read() {
             Ok(Message::Text(txt)) => {
                 println!("Received: {}", txt);
+                self.on_text(txt);
             }
-            Ok(_) => {}
-            Err(e) => eprintln!("WebSocket error: {}", e),
+            Ok(_) => {
+                eprintln!("Received non-text message");
+            }
+            Err(e) => {
+                eprintln!("WebSocket error: {}", e);
+            }
         }
     }
 
@@ -108,8 +130,7 @@ pub trait MultiplayerGame: Game {
                 )
                 .clicked()
             {
-                let room = self.get_room_key_text().clone();
-                self.join_room(room);
+                self.join_room();
             }
         });
     }
@@ -119,22 +140,51 @@ pub trait MultiplayerGame: Game {
     fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16>;
     fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16>;
     fn create_host_button_clicked(&mut self) {
-        //TODO Server starten...
-        self.set_room_key_text(String::from("Create Room key"));
+        if self.connect(String::from("ws://localhost:9000"), None).is_err() {
+            self.set_room_key_text(String::from("Connection failed"));
+            return;
+        } 
+        if self.send(r#"{ "type": "CreateRoom" }"#).is_err() {
+            self.set_room_key_text(String::from("Communication error"));
+            return;
+        }
+        let json_str = self.wait_one_reply();
+        let v:Value = match serde_json::from_str(&json_str) {
+            Ok(val) => val,
+            Err(_) => {
+                self.set_room_key_text(String::from("json parse failed"));
+                return;
+            }
+        };
+        let room_id = match v.get("room_id").and_then(|id| id.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                self.set_room_key_text(String::from("bad server response"));
+                return;
+            }
+        };
+        self.set_room_key_text(room_id);
     }
     fn start_multiplayer_game(&mut self);
 
     fn get_room_key_text(&mut self) -> &mut String;
     fn set_room_key_text(&mut self, text: String);
 
-    fn join_room(&mut self, room: String) {
-        let url = format!("ws://localhost:9000/{}", room);
-        let header_value = None;
+    fn join_room(&mut self) {
+        let room_key = self.get_room_key_text().clone();
+        if room_key.is_empty() {
+            self.set_room_key_text(String::from("Room key here"));
+            return;
+        }
+        let url = format!("ws://localhost:9000/{}", self.get_room_key_text());
+        let header_value = None; 
         if self.connect(url, header_value).is_ok() {
-            println!("Successfully connected to the room: {}", room);
+            println!("Successfully connected to the room: {}", room_key);
+            //println!("Joined room: {}", self.wait_one_reply());
             self.start_multiplayer_game();
         } else {
-            eprintln!("Failed to connect to the room: {}", room);
+            self.set_room_key_text(String::from("No Host for the key"));
+            return;
         }
     }
 }
