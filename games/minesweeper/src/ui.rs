@@ -6,7 +6,7 @@ use egui::{Color32, RichText, Ui, Vec2};
 use game_core::Game;
 
 // Debug flag: Set to true to show mine locations on unopened cells
-const DEBUG_SHOW_MINES: bool = false;
+const DEBUG_SHOW_MINES: bool = true;
 
 pub enum GameState {
     ChoosingDifficulty,
@@ -82,6 +82,18 @@ impl Game for MinesweeperGame {
     fn ui(&mut self, ui: &mut Ui) {
         match &mut self.state {
             GameState::ChoosingDifficulty => {
+
+                let available_width = ui.available_width();
+                let available_height = ui.available_height();
+                let button_width = (available_width * 0.3).clamp(120.0, 400.0);
+                let button_height = (available_height * 0.08).clamp(50.0, 100.0);
+                // clamp: sets min and max value boarders 10.clamp(..) = 50 200.clamp(...) = 100.0
+                let heading_height = 30.0;
+                let total_content_height = heading_height + 20.0 + (button_height * 4.0) + (10.0 * 3.0); // heading + spacing + 4 buttons + 3 gaps
+                let vertical_spacing = ((available_height - total_content_height) / 2.25).max(20.0); // Center vertically with minimum 20 Pixels top spacing  (.max chooses the bigger value)
+
+                ui.add_space(vertical_spacing);
+                
                 ui.vertical_centered(|ui| {
                     ui.heading("Wähle eine Schwierigkeit:");
 
@@ -89,7 +101,7 @@ impl Game for MinesweeperGame {
 
                     let text_easy = RichText::new("Einfach").size(20.0).color(Color32::WHITE); // Easy
                     let button_easy = egui::Button::new(text_easy)
-                        .min_size(Vec2::new(120.0, 50.0))
+                        .min_size(Vec2::new(button_width, button_height))
                         .fill(Color32::from_rgb(0, 100, 0));
                     if ui.add(button_easy).clicked() {
                         self.current_difficulty = Some(Difficulty::Easy);
@@ -100,7 +112,7 @@ impl Game for MinesweeperGame {
 
                     let text_medium = RichText::new("Mittel").size(20.0).color(Color32::WHITE); // Medium
                     let button_medium = egui::Button::new(text_medium)
-                        .min_size(Vec2::new(120.0, 50.0))
+                        .min_size(Vec2::new(button_width, button_height))
                         .fill(Color32::from_rgb(255, 153, 0));
                     if ui.add(button_medium).clicked() {
                         self.current_difficulty = Some(Difficulty::Medium);
@@ -111,7 +123,7 @@ impl Game for MinesweeperGame {
 
                     let text_hard = RichText::new("Schwer").size(20.0).color(Color32::WHITE); // Hard
                     let button_hard = egui::Button::new(text_hard)
-                        .min_size(Vec2::new(120.0, 50.0))
+                        .min_size(Vec2::new(button_width, button_height))
                         .fill(Color32::from_rgb(100, 0, 0));
                     if ui.add(button_hard).clicked() {
                         self.current_difficulty = Some(Difficulty::Hard);
@@ -122,7 +134,7 @@ impl Game for MinesweeperGame {
 
                     let text_expert = RichText::new("Experte").size(20.0).color(Color32::WHITE); // Expert
                     let button_expert = egui::Button::new(text_expert)
-                        .min_size(Vec2::new(120.0, 50.0))
+                        .min_size(Vec2::new(button_width, button_height))
                         .fill(Color32::from_rgb(80, 0, 80));
                     if ui.add(button_expert).clicked() {
                         self.current_difficulty = Some(Difficulty::Expert);
@@ -144,25 +156,47 @@ impl Game for MinesweeperGame {
                 let mut neighbors_to_highlight: Option<Vec<(usize, usize)>> = None; // Store neighbors to highlight in next frame
                 let mut number_cell_pressed = false; // Track if any number cell is currently being pressed
 
-                ui.vertical_centered(|ui| {
+                // Render header (always left-aligned)
+                ui.horizontal(|ui| {
+                    if ui.button("🔙 Zurück").clicked() {
+                        re_choose_difficulty = true; // Outsource because game state can not be changed here
+                    }
+
+                    ui.separator();
+                    ui.label(RichText::new(format!("🚩: {}", game.flag_count)).size(15.0));
+                    ui.separator();
+                    ui.label(RichText::new(format!("💣: {}", game.mine_count)).size(15.0));
+                });
+                
+                // Calculate Board Size & Spacings
+                let cell_size = 25.0;
+                let available_height = ui.available_height();
+                let spacing_x = ui.spacing().item_spacing.x;
+                let spacing_y = ui.spacing().item_spacing.y;
+                let board_width = (width as f32 * cell_size) + ((width as f32 - 1.0).max(0.0) * spacing_x);
+                let board_height = (height as f32 * cell_size) + ((height as f32 - 1.0).max(0.0) * spacing_y);
+                let available_width = ui.available_width();
+                let vertical_offset = if (board_height < available_height) {
+                    (available_height - board_height) / 2.0
+                } else {
+                    10.0
+                };
+                let horizontal_offset = if (board_width < available_width) {
+                    (available_width - board_width) / 2.0
+                } else {
+                    0.0
+                };
+
+                ui.add_space(vertical_offset);
+                
+                for y in 0..height {
                     ui.horizontal(|ui| {
-                        if ui.button("🔙 Zurück").clicked() {
-                            re_choose_difficulty = true; // Outsource because game state can not be changed here
-                        }
 
-                        ui.separator();
-                        ui.label(RichText::new(format!("🚩: {}", game.flag_count)).size(15.0));
-                        ui.separator();
-                        ui.label(RichText::new(format!("💣: {}", game.mine_count)).size(15.0));
-                    });
+                        ui.add_space(horizontal_offset);
+                        
+                        for x in 0..width {
 
-                    ui.add_space(10.0);
-
-                    for y in 0..height {
-                        ui.horizontal(|ui| {
-                            for x in 0..width {
-
-                                let is_highlighted = self.saved_highlights.contains(&(y, x));
+                            let is_highlighted = self.saved_highlights.contains(&(y, x));
 
                                 if (game.board[y][x].cell_state == CellState::Unopened) {
                                     // Unopened Cell
@@ -250,7 +284,6 @@ impl Game for MinesweeperGame {
                             }
                         });
                     }
-                });
 
                 self.last_opened_cell = might_be_over;
 
@@ -291,25 +324,45 @@ impl Game for MinesweeperGame {
                 let mut re_choose_difficulty = false;
                 let mut retry = false;
 
-                ui.vertical_centered(|ui| {
-                    // copy of the board in the background
+                ui.horizontal(|ui| {
+                    if ui.button("🔙 Zurück").clicked() {
+                        re_choose_difficulty = true;
+                    }
+
+                    ui.separator();
+                    ui.label(RichText::new(format!("🚩: {}", game.flag_count)).size(15.0));
+                    ui.separator();
+                    ui.label(RichText::new(format!("💣: {}", game.mine_count)).size(15.0));
+                });
+                
+                // Calculate Board Size & Spacings
+                let cell_size = 25.0;
+                let available_height = ui.available_height();
+                let available_width = ui.available_width();
+                let spacing_x = ui.spacing().item_spacing.x;
+                let spacing_y = ui.spacing().item_spacing.y;
+                let board_height = (height as f32 * cell_size) + ((height as f32 - 1.0).max(0.0) * spacing_y);
+                let board_width = (width as f32 * cell_size) + ((width as f32 - 1.0).max(0.0) * spacing_x);
+                let horizontal_offset = if (board_width < available_width) {
+                    (available_width - board_width) / 2.0
+                } else {
+                    0.0
+                };
+                let vertical_offset = if (board_height < available_height) {
+                    (available_height - board_height) / 2.0
+                } else {
+                    10.0
+                };
+                
+                ui.add_space(vertical_offset);
+                
+                for y in 0..height {
                     ui.horizontal(|ui| {
-                        if ui.button("🔙 Zurück").clicked() {
-                            re_choose_difficulty = true;
-                        }
 
-                        ui.separator();
-                        ui.label(RichText::new(format!("🚩: {}", game.flag_count)).size(15.0));
-                        ui.separator();
-                        ui.label(RichText::new(format!("💣: {}", game.mine_count)).size(15.0));
-                    });
-
-                    ui.add_space(10.0);
-
-                    for y in 0..height {
-                        ui.horizontal(|ui| {
-                            for x in 0..width {
-                                if (game.board[y][x].cell_state == CellState::Unopened) {
+                        ui.add_space(horizontal_offset);
+                        
+                        for x in 0..width {
+                            if (game.board[y][x].cell_state == CellState::Unopened) {
                                     let button =
                                         egui::Button::new("").min_size(Vec2::new(25.0, 25.0));
                                     let _click_or_flag = ui.add(button);
@@ -371,7 +424,6 @@ impl Game for MinesweeperGame {
                             }
                         });
                     }
-                });
 
                 let window_text: &str;
 

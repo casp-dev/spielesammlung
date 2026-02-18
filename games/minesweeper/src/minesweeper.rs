@@ -315,7 +315,7 @@ impl Minesweeper for Game {
                 (vec![vec![default_cell; 22]; 22], 80) // 22x22, 80 Mines
             }
             Difficulty::Expert => {
-                (vec![vec![default_cell; 30]; 16], 99) // 30x16, 99 Mines
+                (vec![vec![default_cell; 22]; 22], 101) // 22x22, 101 Mines
             }
         };
         let columns = board[0].len(); // X
