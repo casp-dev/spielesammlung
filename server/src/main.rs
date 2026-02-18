@@ -115,12 +115,40 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, state: Arc<Serve
                         let _ = tx.send(response.to_json());
                     }
 
-                    ClientMessage::JoinRoom { .. } => {
-                        // TODO: implementieren
-                        let err = ServerMessage::Error {
-                            message: "JoinRoom noch nicht implementiert".to_string(),
+                    ClientMessage::JoinRoom { room_id } => {
+                        if !state.rooms.room_exists(&room_id).await {
+                            let err = ServerMessage::Error {
+                                message: format!("Raum {} existiert nicht", room_id),
+                            };
+                            let _ = tx.send(err.to_json());
+                            continue;
+                        }
+
+                        if let Some(ref old_room) = current_room {
+                            state.rooms.leave_room(old_room, player_id).await;
+                        }
+
+                        state.rooms.join_room(&room_id, player_id, tx.clone()).await;
+                        current_room = Some(room_id.clone());
+
+                        let player_number = state.rooms.player_count(&room_id).await;
+
+                        println!(
+                            "[Server] Spieler {} ist Raum {} beigetreten (Spieler #{})",
+                            player_id, room_id, player_number
+                        );
+
+                        let response = ServerMessage::RoomJoined {
+                            room_id: room_id.clone(),
+                            player_number,
                         };
-                        let _ = tx.send(err.to_json());
+                        let _ = tx.send(response.to_json());
+
+                        let notify = ServerMessage::PlayerJoined { player_number };
+                        state
+                            .rooms
+                            .broadcast(&room_id, &notify.to_json(), Some(player_id))
+                            .await;
                     }
 
                     ClientMessage::GameMove { .. } => {
