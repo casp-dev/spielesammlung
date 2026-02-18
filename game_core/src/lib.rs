@@ -1,11 +1,11 @@
 use egui::Ui;
 
 use std::error::Error;
-use tungstenite::{connect, Message, WebSocket};
-use tungstenite::client::IntoClientRequest;
-use tungstenite::stream::MaybeTlsStream;
-use tungstenite::http::header::HeaderName;
 use std::net::TcpStream;
+use tungstenite::client::IntoClientRequest;
+use tungstenite::http::header::HeaderName;
+use tungstenite::stream::MaybeTlsStream;
+use tungstenite::{connect, Message, WebSocket};
 
 pub trait Game {
     fn name(&self) -> &str;
@@ -128,8 +128,8 @@ pub trait MultiplayerGame: Game {
     fn set_room_key_text(&mut self, text: String);
 
     fn join_room(&mut self, room: String) {
-        let url = format!("ws://localhost:8080/{}", room);
-        let header_value = None; 
+        let url = format!("ws://localhost:9000/{}", room);
+        let header_value = None;
         if self.connect(url, header_value).is_ok() {
             println!("Successfully connected to the room: {}", room);
             self.start_multiplayer_game();
