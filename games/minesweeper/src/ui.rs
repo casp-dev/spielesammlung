@@ -6,7 +6,7 @@ use egui::{Color32, RichText, Ui, Vec2};
 use game_core::Game;
 
 // Debug flag: Set to true to show mine locations on unopened cells
-const DEBUG_SHOW_MINES: bool = true;
+const DEBUG_SHOW_MINES: bool = false;
 
 pub enum GameState {
     ChoosingDifficulty,
