@@ -66,7 +66,6 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, state: Arc<Serve
     // Channel für ausgehende Nachrichten an diesen Client
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
 
-    // TODO: Nachrichten aus Channel an WebSocket senden
     let send_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             if ws_sender.send(Message::Text(msg)).await.is_err() {
@@ -151,20 +150,43 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, state: Arc<Serve
                             .await;
                     }
 
-                    ClientMessage::GameMove { .. } => {
-                        // TODO: implementieren
-                        let err = ServerMessage::Error {
-                            message: "GameMove noch nicht implementiert".to_string(),
-                        };
-                        let _ = tx.send(err.to_json());
+                    ClientMessage::GameMove { data } => {
+                        if let Some(ref room_id) = current_room {
+                            let forward = ServerMessage::GameMove { data };
+                            state
+                                .rooms
+                                .broadcast(room_id, &forward.to_json(), Some(player_id))
+                                .await;
+
+                            println!(
+                                "[Server] GameMove von Spieler {} in Raum {} weitergeleitet",
+                                player_id, room_id
+                            );
+                        } else {
+                            let err = ServerMessage::Error {
+                                message: "Du bist in keinem Raum".to_string(),
+                            };
+                            let _ = tx.send(err.to_json());
+                        }
                     }
 
                     ClientMessage::LeaveRoom => {
-                        // TODO: implementieren
-                        let err = ServerMessage::Error {
-                            message: "LeaveRoom noch nicht implementiert".to_string(),
-                        };
-                        let _ = tx.send(err.to_json());
+                        if let Some(ref room_id) = current_room {
+                            let player_number = state.rooms.player_count(room_id).await;
+                            state.rooms.leave_room(room_id, player_id).await;
+
+                            println!(
+                                "[Server] Spieler {} hat Raum {} verlassen",
+                                player_id, room_id
+                            );
+
+                            let notify = ServerMessage::PlayerLeft { player_number };
+                            state
+                                .rooms
+                                .broadcast(room_id, &notify.to_json(), None)
+                                .await;
+                        }
+                        current_room = None;
                     }
                 }
             }
