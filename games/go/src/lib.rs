@@ -190,6 +190,20 @@ impl CoreGame for GoGame {
             }
         }
 
+        // Letzter Zug Mark
+        if let Some((lx, ly)) = self.game.last_move {
+            if let Some(stone) = self.game.board.get(lx, ly) {
+                let center =
+                    grid_rect.min + egui::vec2(lx as f32 * cell_size, ly as f32 * cell_size);
+                let marker_radius = cell_size * 0.1;
+                let marker_color = match stone {
+                    Stone::Black => egui::Color32::WHITE,
+                    Stone::White => egui::Color32::BLACK,
+                };
+                painter.circle_filled(center, marker_radius, marker_color);
+            }
+        }
+
         // Hover
         if let Some(pos) = response.hover_pos() {
             if !self.game.game_over && rect.contains(pos) {
