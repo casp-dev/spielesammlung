@@ -67,7 +67,6 @@ pub trait MultiplayerGame: Game {
     fn wait_one_reply_game(&mut self) {
         match self.get_client().read() {
             Ok(Message::Text(txt)) => {
-                println!("Received: {}", txt);
                 self.on_text(txt);
             }
             Ok(_) => {

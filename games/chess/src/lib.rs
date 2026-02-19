@@ -232,12 +232,19 @@ impl ChessGame {
 
     fn move_multiplayer(&mut self) {
         if let Some(multiplayer_color) = self.multiplayer {
-            if multiplayer_color == self.turn {
-                let move_msg = format!(
-                    r#"{{ "type": "GameMove", "data": {{ "x": {:?}, "y": {:?} }} }}"#,
-                    self.logs.last().unwrap().0,
-                    self.logs.last().unwrap().1
+            if multiplayer_color != self.turn {
+                let x = format!(
+                    "[{},{}]",
+                    self.logs.last().unwrap().0 .0,
+                    self.logs.last().unwrap().0 .1
                 );
+                let y = format!(
+                    "[{},{}]",
+                    self.logs.last().unwrap().1 .0,
+                    self.logs.last().unwrap().1 .1
+                );
+                let move_msg =
+                    format!(r#"{{ "type": "GameMove", "data": {{ "from" : {x}, "to": {y} }} }}"#,);
                 self.send(&move_msg).unwrap();
                 println!("send move message");
                 self.wait_one_reply_game();
@@ -455,12 +462,16 @@ impl Game for ChessGame {
             } else {
                 ui.heading(format!("score: {}", self.state));
             }
-            let reset_btn = egui::Button::new("Reset Game");
-            if ui.add(reset_btn).clicked() {
-                let bot = self.engine.clone();
-                *self = ChessGame::new();
-                self.engine = bot;
-                self.state = "0.0".to_string();
+            if self.multiplayer.is_some() {
+                self.wait_one_reply_game();
+            } else {
+                let reset_btn = egui::Button::new("Reset Game");
+                if ui.add(reset_btn).clicked() {
+                    let bot = self.engine.clone();
+                    *self = ChessGame::new();
+                    self.engine = bot;
+                    self.state = "0.0".to_string();
+                }
             }
             draw_board(ui, self);
         } else {
@@ -471,23 +482,24 @@ impl Game for ChessGame {
 
 impl MultiplayerGame for ChessGame {
     fn on_text(&mut self, str: String) {
-        println!("ON TEXT");
-        if let Ok(v) = serde_json::from_str::<Value>(&str) {
-            if v.get("type").and_then(|t| t.as_str()) == Some("GameMove") {
-                if let Some(data) = v.get("data") {
-                    if let (Some(x), Some(y)) = (
-                        data.get("x").and_then(|v| v.as_str()),
-                        data.get("y").and_then(|v| v.as_str()),
-                    ) {
-                        let frst = (x.chars().nth(1).unwrap() as usize, x.chars().nth(3).unwrap() as usize);
-                        let scnd = (y.chars().nth(0).unwrap() as usize, y.chars().nth(1).unwrap() as usize);
-                        println!("Received move: from {:?} to {:?}", frst, scnd);
-                        self.clicked_meeple = frst;
-                        self.move_meeple(scnd);
-                    }
-                }
-            }
+        println!("Received: {}", str);
+
+        let v: Value = serde_json::from_str(&str).unwrap();
+
+        let from = &v["data"]["from"];
+        let to = &v["data"]["to"];
+
+        let x1 = from[0].as_u64().unwrap() as usize;
+        let y1 = from[1].as_u64().unwrap() as usize;
+
+        let x2 = to[0].as_u64().unwrap() as usize;
+        let y2 = to[1].as_u64().unwrap() as usize;
+
+        if self.turn == self.multiplayer.unwrap() {
+            return;
         }
+        self.clicked_meeple = (x1, y1);
+        self.move_meeple((x2, y2));
     }
 
     fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16> {
