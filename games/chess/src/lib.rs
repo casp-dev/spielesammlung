@@ -6,6 +6,7 @@ use game_core::{Game, MultiplayerGame};
 use tungstenite::{WebSocket};
 use tungstenite::stream::MaybeTlsStream;
 use std::net::TcpStream;
+use serde_json::Value;
 
 mod engine;
 mod meeples;
@@ -31,7 +32,7 @@ pub struct ChessGame {
     engine: Option<Engine>,
     possible_bot_level: u16,
     client: Option<WebSocket<MaybeTlsStream<TcpStream>>>,
-    multiplayer: bool,
+    multiplayer: Option<Color>,
     room_key: String,
 }
 
@@ -93,7 +94,7 @@ impl ChessGame {
             engine: None,
             possible_bot_level: 3,
             client: None,
-            multiplayer: false,
+            multiplayer: None,
             room_key: String::new(),
         }
     }
@@ -393,7 +394,38 @@ impl Game for ChessGame {
     }
 
     fn ui(&mut self, ui: &mut Ui) {
-        if self.state != "initial" {
+        if self.state == "waiting for opponent" {
+            ui.heading("Rust Go - Multiplayer");
+                ui.label(format!("Room ID: {}", self.room_key));
+                ui.label("Warte auf Gegner...");
+
+                // Non-blocking: auf PlayerJoined msg warten
+                if self.client.is_some() {
+                    ui.ctx().request_repaint();
+
+                    let received = match self.client.as_mut().unwrap().read() {
+                        Ok(tungstenite::Message::Text(txt)) => Some(txt),
+                        Err(tungstenite::Error::Io(ref e))
+                            if e.kind() == std::io::ErrorKind::WouldBlock =>
+                        {
+                            None
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(txt) = received {
+                        if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                            if v.get("type").and_then(|t| t.as_str()) == Some("PlayerJoined") {
+                                self.state = String::from("Multiplayer");
+                            }
+                        }
+                    }
+                }
+
+                if ui.button("Spiel starten").clicked() {
+
+                }
+        } else if self.state != "initial" {
             if self.state == "Tie because of triple repetition"
                 || self.state == "White has won"
                 || self.state == "Black has won"
@@ -460,7 +492,57 @@ impl MultiplayerGame for ChessGame {
     }
 
     fn start_multiplayer_game(&mut self) {
-        
+        self.multiplayer = Some(Color::White);
+        self.state = String::from("Multiplayer");
+
+        // non-blocking für spiel
+        if let Some(ref client) = self.client {
+            if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
+                let _ = tcp.set_nonblocking(true);
+            }
+        }
+    }
+
+    fn create_host_button_clicked(&mut self) {
+        println!("Creating multiplayer room...");
+        // Verbindet und erstellt Raum
+        if self
+            .connect(String::from("ws://localhost:9000"), None)
+            .is_err()
+        {
+            self.set_room_key_text(String::from("Connection failed"));
+            return;
+        }
+        if self.send(r#"{ "type": "CreateRoom" }"#).is_err() {
+            self.set_room_key_text(String::from("Communication error"));
+            return;
+        }
+        let json_str = self.wait_one_reply();
+        let v: Value = match serde_json::from_str(&json_str) {
+            Ok(val) => val,
+            Err(_) => {
+                self.set_room_key_text(String::from("json parse failed"));
+                return;
+            }
+        };
+        let room_id = match v.get("room_id").and_then(|id| id.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                self.set_room_key_text(String::from("bad server response"));
+                return;
+            }
+        };
+        self.set_room_key_text(room_id);
+
+        self.multiplayer = Some(Color::White);
+        self.state = String::from("waiting for opponent");
+
+        // non-blocking für spiel
+        if let Some(ref client) = self.client {
+            if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
+                let _ = tcp.set_nonblocking(true);
+            }
+        }
     }
 
 }
