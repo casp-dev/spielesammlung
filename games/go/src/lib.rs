@@ -2,6 +2,17 @@ mod game;
 
 use game::{Game, Stone};
 use game_core::Game as CoreGame;
+use game_core::MultiplayerGame;
+
+use std::net::TcpStream;
+use tungstenite::stream::MaybeTlsStream;
+use tungstenite::WebSocket;
+
+#[derive(PartialEq)]
+enum GoGameState {
+    Menu,
+    Playing,
+}
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
@@ -18,13 +29,23 @@ fn main() -> eframe::Result<()> {
 pub struct GoGame {
     game: Game,
     status_message: String,
+    game_state: GoGameState,
+    client: Option<WebSocket<MaybeTlsStream<TcpStream>>>,
+    room_key: String,
+    multiplayer: bool,
+    my_color: Option<Stone>,
 }
 
 impl Default for GoGame {
     fn default() -> Self {
         Self {
-            game: Game::new(19), // Standard 19x19 brett
+            game: Game::new(19),
             status_message: "Spiel gestartet. Schwarz ist am Zug.".to_owned(),
+            game_state: GoGameState::Menu,
+            client: None,
+            room_key: String::new(),
+            multiplayer: false,
+            my_color: None,
         }
     }
 }
@@ -177,5 +198,49 @@ impl eframe::App for GoGame {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.ui(ui);
         });
+    }
+}
+
+impl MultiplayerGame for GoGame {
+    fn on_text(&mut self, _msg: String) {
+        // Will be implemented in Commit 4
+    }
+
+    fn set_client(&mut self, client: WebSocket<MaybeTlsStream<TcpStream>>) {
+        self.client = Some(client);
+    }
+
+    fn get_client(&mut self) -> &mut WebSocket<MaybeTlsStream<TcpStream>> {
+        self.client.as_mut().unwrap()
+    }
+
+    fn get_room_key_text(&mut self) -> &mut String {
+        &mut self.room_key
+    }
+
+    fn set_room_key_text(&mut self, text: String) {
+        self.room_key = text;
+    }
+
+    fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16> {
+        self.game_state = GoGameState::Playing;
+        player_counter
+    }
+
+    fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16> {
+        // Go has no bot yet
+        bot_level
+    }
+
+    fn player_count_slider(&mut self, _ui: &mut egui::Ui) -> u16 {
+        0
+    }
+
+    fn bot_level_slider(&mut self, _ui: &mut egui::Ui) -> u16 {
+        0
+    }
+
+    fn start_multiplayer_game(&mut self) {
+        // Will be implemented in Commit 4
     }
 }
