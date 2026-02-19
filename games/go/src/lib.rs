@@ -4,6 +4,7 @@ use game::{Game, Stone};
 use game_core::Game as CoreGame;
 use game_core::MultiplayerGame;
 
+use serde_json::Value;
 use std::net::TcpStream;
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::WebSocket;
@@ -11,6 +12,7 @@ use tungstenite::WebSocket;
 #[derive(PartialEq)]
 enum GoGameState {
     Menu,
+    WaitingForOpponent,
     Playing,
 }
 
@@ -66,6 +68,40 @@ impl CoreGame for GoGame {
             GoGameState::Menu => {
                 ui.heading("Rust Go");
                 self.multipalyer_ui(ui, false, false);
+            }
+            GoGameState::WaitingForOpponent => {
+                ui.heading("Rust Go - Multiplayer");
+                ui.label(format!("Room ID: {}", self.room_key));
+                ui.label("Warte auf Gegner...");
+
+                // Non-blocking: auf PlayerJoined msg warten
+                if self.client.is_some() {
+                    ui.ctx().request_repaint();
+
+                    let received = match self.client.as_mut().unwrap().read() {
+                        Ok(tungstenite::Message::Text(txt)) => Some(txt),
+                        Err(tungstenite::Error::Io(ref e))
+                            if e.kind() == std::io::ErrorKind::WouldBlock =>
+                        {
+                            None
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(txt) = received {
+                        if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                            if v.get("type").and_then(|t| t.as_str()) == Some("PlayerJoined") {
+                                self.game_state = GoGameState::Playing;
+                                self.status_message =
+                                    "Gegner beigetreten! Schwarz ist am Zug.".to_owned();
+                            }
+                        }
+                    }
+                }
+
+                if ui.button("Spiel starten").clicked() {
+                    self.game_state = GoGameState::Playing;
+                }
             }
             GoGameState::Playing => {
                 ui.heading("Rust Go");
@@ -174,7 +210,13 @@ impl CoreGame for GoGame {
                 }
 
                 // Klicks
-                if response.clicked() && !self.game.game_over {
+                let my_turn = if self.multiplayer {
+                    self.my_color == Some(self.game.current_turn)
+                } else {
+                    true
+                };
+
+                if response.clicked() && !self.game.game_over && my_turn {
                     if let Some(pos) = response.interact_pointer_pos() {
                         // pos zu Brett-Koordinaten umrechnen
                         let relative_pos = pos - rect.min;
@@ -191,12 +233,43 @@ impl CoreGame for GoGame {
                                         "Zug akzeptiert. {:?} ist am Zug.",
                                         self.game.current_turn
                                     );
+                                    // Sendet move to server
+                                    if self.multiplayer {
+                                        let move_msg = format!(
+                                            r#"{{ "type": "GameMove", "data": {{ "x": {}, "y": {} }} }}"#,
+                                            x, y
+                                        );
+                                        let _ = self.send(&move_msg);
+                                    }
                                 }
                                 Err(e) => {
                                     self.status_message = format!("Ungültiger Zug: {}", e);
                                 }
                             }
                         }
+                    }
+                }
+
+                // Non-blocking: auf mesg warten
+                if self.multiplayer && self.client.is_some() {
+                    ui.ctx().request_repaint();
+
+                    let received = match self.client.as_mut().unwrap().read() {
+                        Ok(tungstenite::Message::Text(txt)) => Some(txt),
+                        Err(tungstenite::Error::Io(ref e))
+                            if e.kind() == std::io::ErrorKind::WouldBlock =>
+                        {
+                            None
+                        }
+                        Err(e) => {
+                            eprintln!("WebSocket error: {}", e);
+                            None
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(txt) = received {
+                        self.on_text(txt);
                     }
                 }
             } // Playing
@@ -213,7 +286,22 @@ impl eframe::App for GoGame {
 }
 
 impl MultiplayerGame for GoGame {
-    fn on_text(&mut self, _msg: String) {}
+    fn on_text(&mut self, msg: String) {
+        // Parse GameMove von server
+        if let Ok(v) = serde_json::from_str::<Value>(&msg) {
+            if v.get("type").and_then(|t| t.as_str()) == Some("GameMove") {
+                if let Some(data) = v.get("data") {
+                    if let (Some(x), Some(y)) = (
+                        data.get("x").and_then(|v| v.as_u64()),
+                        data.get("y").and_then(|v| v.as_u64()),
+                    ) {
+                        let _ = self.game.place_stone(x as usize, y as usize);
+                        self.status_message = format!("{:?} ist am Zug.", self.game.current_turn);
+                    }
+                }
+            }
+        }
+    }
 
     fn set_client(&mut self, client: WebSocket<MaybeTlsStream<TcpStream>>) {
         self.client = Some(client);
@@ -240,6 +328,50 @@ impl MultiplayerGame for GoGame {
         bot_level
     }
 
+    fn create_host_button_clicked(&mut self) {
+        // Verbindet und erstellt Raum
+        if self
+            .connect(String::from("ws://localhost:9000"), None)
+            .is_err()
+        {
+            self.set_room_key_text(String::from("Connection failed"));
+            return;
+        }
+        if self.send(r#"{ "type": "CreateRoom" }"#).is_err() {
+            self.set_room_key_text(String::from("Communication error"));
+            return;
+        }
+        let json_str = self.wait_one_reply();
+        let v: Value = match serde_json::from_str(&json_str) {
+            Ok(val) => val,
+            Err(_) => {
+                self.set_room_key_text(String::from("json parse failed"));
+                return;
+            }
+        };
+        let room_id = match v.get("room_id").and_then(|id| id.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                self.set_room_key_text(String::from("bad server response"));
+                return;
+            }
+        };
+        self.set_room_key_text(room_id);
+
+        self.multiplayer = true;
+        self.my_color = Some(Stone::Black);
+        self.game_state = GoGameState::WaitingForOpponent;
+        self.game = Game::new(19);
+        self.status_message = "Schwarz ist am Zug.".to_owned();
+
+        // non-blocking für spiel
+        if let Some(ref client) = self.client {
+            if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
+                let _ = tcp.set_nonblocking(true);
+            }
+        }
+    }
+
     fn player_count_slider(&mut self, _ui: &mut egui::Ui) -> u16 {
         0
     }
@@ -248,5 +380,18 @@ impl MultiplayerGame for GoGame {
         0
     }
 
-    fn start_multiplayer_game(&mut self) {}
+    fn start_multiplayer_game(&mut self) {
+        self.multiplayer = true;
+        self.my_color = Some(Stone::White);
+        self.game_state = GoGameState::Playing;
+        self.game = Game::new(19);
+        self.status_message = "Multiplayer gestartet. Schwarz ist am Zug.".to_owned();
+
+        // non-blocking für spiel
+        if let Some(ref client) = self.client {
+            if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
+                let _ = tcp.set_nonblocking(true);
+            }
+        }
+    }
 }

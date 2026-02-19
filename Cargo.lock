@@ -1421,6 +1421,8 @@ dependencies = [
  "eframe",
  "egui",
  "game_core",
+ "serde_json",
+ "tungstenite",
 ]
 
 [[package]]
