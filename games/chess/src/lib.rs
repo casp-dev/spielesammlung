@@ -3,15 +3,15 @@ use std::{collections::HashMap, usize};
 use egui::{Color32, RichText, Ui};
 use game_core::{Game, MultiplayerGame};
 
-use tungstenite::{WebSocket};
-use tungstenite::stream::MaybeTlsStream;
-use std::net::TcpStream;
 use serde_json::Value;
+use std::net::TcpStream;
+use tungstenite::stream::MaybeTlsStream;
+use tungstenite::WebSocket;
 
 mod engine;
 mod meeples;
 use crate::{
-    draw::{draw_board},
+    draw::draw_board,
     engine::{calculate_board, Engine},
     meeples::{opposite_color, Color, Meeple, Type},
 };
@@ -118,6 +118,12 @@ impl ChessGame {
         {
             return;
         }
+
+        if let Some(color) = self.multiplayer {
+            if color != self.turn {
+                return;
+            }
+        }
         self.shown_moves = self.possible_moves[x][y].clone();
         self.clicked_meeple = (x, y);
     }
@@ -129,6 +135,7 @@ impl ChessGame {
         {
             return;
         }
+
         let frst = self.clicked_meeple.clone();
 
         if self.check_casteling(frst, scnd) {
@@ -150,6 +157,7 @@ impl ChessGame {
         self.get_all_possible_moves();
         self.triple_repetition();
         self.move_engine();
+        self.move_multiplayer();
     }
 
     fn check_casteling(&self, frst_pos: (usize, usize), scnd_pos: (usize, usize)) -> bool {
@@ -219,6 +227,21 @@ impl ChessGame {
         self.pawn_mutate = false;
         if !self.engine.is_none() {
             self.move_engine();
+        }
+    }
+
+    fn move_multiplayer(&mut self) {
+        if let Some(multiplayer_color) = self.multiplayer {
+            if multiplayer_color == self.turn {
+                let move_msg = format!(
+                    r#"{{ "type": "GameMove", "data": {{ "x": {:?}, "y": {:?} }} }}"#,
+                    self.logs.last().unwrap().0,
+                    self.logs.last().unwrap().1
+                );
+                self.send(&move_msg).unwrap();
+                println!("send move message");
+                self.wait_one_reply_game();
+            }
         }
     }
 
@@ -396,35 +419,33 @@ impl Game for ChessGame {
     fn ui(&mut self, ui: &mut Ui) {
         if self.state == "waiting for opponent" {
             ui.heading("Rust Go - Multiplayer");
-                ui.label(format!("Room ID: {}", self.room_key));
-                ui.label("Warte auf Gegner...");
+            ui.label(format!("Room ID: {}", self.room_key));
+            ui.label("Warte auf Gegner...");
 
-                // Non-blocking: auf PlayerJoined msg warten
-                if self.client.is_some() {
-                    ui.ctx().request_repaint();
+            // Non-blocking: auf PlayerJoined msg warten
+            if self.client.is_some() {
+                ui.ctx().request_repaint();
 
-                    let received = match self.client.as_mut().unwrap().read() {
-                        Ok(tungstenite::Message::Text(txt)) => Some(txt),
-                        Err(tungstenite::Error::Io(ref e))
-                            if e.kind() == std::io::ErrorKind::WouldBlock =>
-                        {
-                            None
-                        }
-                        _ => None,
-                    };
+                let received = match self.client.as_mut().unwrap().read() {
+                    Ok(tungstenite::Message::Text(txt)) => Some(txt),
+                    Err(tungstenite::Error::Io(ref e))
+                        if e.kind() == std::io::ErrorKind::WouldBlock =>
+                    {
+                        None
+                    }
+                    _ => None,
+                };
 
-                    if let Some(txt) = received {
-                        if let Ok(v) = serde_json::from_str::<Value>(&txt) {
-                            if v.get("type").and_then(|t| t.as_str()) == Some("PlayerJoined") {
-                                self.state = String::from("Multiplayer");
-                            }
+                if let Some(txt) = received {
+                    if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                        if v.get("type").and_then(|t| t.as_str()) == Some("PlayerJoined") {
+                            self.start_multiplayer_game();
                         }
                     }
                 }
+            }
 
-                if ui.button("Spiel starten").clicked() {
-
-                }
+            if ui.button("Spiel starten").clicked() {}
         } else if self.state != "initial" {
             if self.state == "Tie because of triple repetition"
                 || self.state == "White has won"
@@ -443,23 +464,38 @@ impl Game for ChessGame {
             }
             draw_board(ui, self);
         } else {
-            self.multipalyer_ui(ui,true,false);
+            self.multipalyer_ui(ui, true, false);
         }
     }
 }
 
 impl MultiplayerGame for ChessGame {
-
     fn on_text(&mut self, str: String) {
-        println!("{}",str);
+        println!("ON TEXT");
+        if let Ok(v) = serde_json::from_str::<Value>(&str) {
+            if v.get("type").and_then(|t| t.as_str()) == Some("GameMove") {
+                if let Some(data) = v.get("data") {
+                    if let (Some(x), Some(y)) = (
+                        data.get("x").and_then(|v| v.as_str()),
+                        data.get("y").and_then(|v| v.as_str()),
+                    ) {
+                        let frst = (x.chars().nth(1).unwrap() as usize, x.chars().nth(3).unwrap() as usize);
+                        let scnd = (y.chars().nth(0).unwrap() as usize, y.chars().nth(1).unwrap() as usize);
+                        println!("Received move: from {:?} to {:?}", frst, scnd);
+                        self.clicked_meeple = frst;
+                        self.move_meeple(scnd);
+                    }
+                }
+            }
+        }
     }
 
-    fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16>{
+    fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16> {
         self.state = String::from("Play Local");
         player_counter
     }
 
-    fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16>{
+    fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16> {
         self.state = String::from("Play vs Bot");
         self.engine = Some(Engine::new(bot_level.unwrap(), Color::Black));
         bot_level
@@ -481,30 +517,39 @@ impl MultiplayerGame for ChessGame {
         self.room_key = text;
     }
 
-    fn player_count_slider(&mut self,ui: &mut Ui) -> u16 {
+    fn player_count_slider(&mut self, ui: &mut Ui) -> u16 {
         self.ui(ui);
         0
     }
 
-    fn bot_level_slider(&mut self,ui: &mut Ui) -> u16 {
-        ui.add(egui::Slider::new(&mut self.possible_bot_level, 1..=7).text("What level for the bot?"));
+    fn bot_level_slider(&mut self, ui: &mut Ui) -> u16 {
+        ui.add(
+            egui::Slider::new(&mut self.possible_bot_level, 1..=7).text("What level for the bot?"),
+        );
         self.possible_bot_level
     }
 
     fn start_multiplayer_game(&mut self) {
-        self.multiplayer = Some(Color::White);
-        self.state = String::from("Multiplayer");
-
         // non-blocking für spiel
         if let Some(ref client) = self.client {
             if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
                 let _ = tcp.set_nonblocking(true);
             }
         }
+
+        if self.state != "waiting for opponent" {
+            self.multiplayer = Some(Color::White);
+            println!("i am white");
+            self.state = String::from("Multiplayer as White");
+        } else {
+            self.multiplayer = Some(Color::Black);
+            println!("i am black");
+            self.state = String::from("Multiplayer as Black");
+            self.wait_one_reply_game();
+        }
     }
 
     fn create_host_button_clicked(&mut self) {
-        println!("Creating multiplayer room...");
         // Verbindet und erstellt Raum
         if self
             .connect(String::from("ws://localhost:9000"), None)
@@ -544,5 +589,4 @@ impl MultiplayerGame for ChessGame {
             }
         }
     }
-
 }
