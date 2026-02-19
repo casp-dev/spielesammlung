@@ -1,12 +1,12 @@
 use egui::Ui;
 
-use std::error::Error;
-use tungstenite::{connect, Message, WebSocket};
-use tungstenite::client::IntoClientRequest;
-use tungstenite::stream::MaybeTlsStream;
-use tungstenite::http::header::HeaderName;
 use serde_json::Value;
+use std::error::Error;
 use std::net::TcpStream;
+use tungstenite::client::IntoClientRequest;
+use tungstenite::http::header::HeaderName;
+use tungstenite::stream::MaybeTlsStream;
+use tungstenite::{connect, Message, WebSocket};
 
 pub trait Game {
     fn name(&self) -> &str;
@@ -50,11 +50,9 @@ pub trait MultiplayerGame: Game {
         Ok(())
     }
 
-    fn wait_one_reply(&mut self) -> String{
-       match self.get_client().read() {
-            Ok(Message::Text(txt)) => {
-                txt
-            }
+    fn wait_one_reply(&mut self) -> String {
+        match self.get_client().read() {
+            Ok(Message::Text(txt)) => txt,
             Ok(_) => {
                 eprintln!("Received non-text message");
                 String::new()
@@ -66,7 +64,7 @@ pub trait MultiplayerGame: Game {
         }
     }
 
-    fn wait_one_reply_game(&mut self){
+    fn wait_one_reply_game(&mut self) {
         match self.get_client().read() {
             Ok(Message::Text(txt)) => {
                 println!("Received: {}", txt);
@@ -140,16 +138,19 @@ pub trait MultiplayerGame: Game {
     fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16>;
     fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16>;
     fn create_host_button_clicked(&mut self) {
-        if self.connect(String::from("ws://localhost:9000"), None).is_err() {
+        if self
+            .connect(String::from("ws://localhost:9000"), None)
+            .is_err()
+        {
             self.set_room_key_text(String::from("Connection failed"));
             return;
-        } 
+        }
         if self.send(r#"{ "type": "CreateRoom" }"#).is_err() {
             self.set_room_key_text(String::from("Communication error"));
             return;
         }
         let json_str = self.wait_one_reply();
-        let v:Value = match serde_json::from_str(&json_str) {
+        let v: Value = match serde_json::from_str(&json_str) {
             Ok(val) => val,
             Err(_) => {
                 self.set_room_key_text(String::from("json parse failed"));
@@ -177,10 +178,15 @@ pub trait MultiplayerGame: Game {
             return;
         }
         let url = format!("ws://localhost:9000/{}", self.get_room_key_text());
-        let header_value = None; 
+        let header_value = None;
         if self.connect(url, header_value).is_ok() {
-            println!("Successfully connected to the room: {}", room_key);
-            //println!("Joined room: {}", self.wait_one_reply());
+            let join_msg = format!(r#"{{ "type": "JoinRoom", "room_id": "{}" }}"#, room_key);
+            if self.send(&join_msg).is_err() {
+                self.set_room_key_text(String::from("Communication error"));
+                return;
+            }
+            let reply = self.wait_one_reply();
+            println!("Joined room: {}", reply);
             self.start_multiplayer_game();
         } else {
             self.set_room_key_text(String::from("No Host for the key"));
