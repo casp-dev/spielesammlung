@@ -289,6 +289,7 @@ impl ChessGame {
         }
 
         if !can_move {
+            //patt
             self.state = format!("{:?} has won", opposite_color(self.turn));
         }
         self.possible_moves = ret_vec.clone();
