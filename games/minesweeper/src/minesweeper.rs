@@ -1,16 +1,5 @@
 // contains the and game logic for minesweeper
-/*
-Rules: (via: https://en.wikipedia.org/wiki/Minesweeper_(video_game))
-
-Minesweeper is a puzzle video game. In the game, mines (that resemble naval mines in the classic theme) are scattered throughout a board, which is divided into cells. Cells have three states: unopened, opened and flagged. An unopened cell is blank and clickable, while an opened cell is exposed. Flagged cells are those marked by the player to indicate a potential mine location.
-
-A player selects a cell to open it. If a player opens a mined cell, the game ends. Otherwise, the opened cell displays either a number, indicating the number of mines vertically, horizontally or diagonally adjacent to it, or a blank tile (or "0"), and all adjacent non-mined cells will automatically be opened. Players can also flag a cell, visualized by a flag being put on the location, to denote that they believe a mine to be in that place. Flagged cells are still considered unopened, and a player can click on them to open them.
-
-In some versions of the game when the number of adjacent mines is equal to the number of adjacent flagged cells, all adjacent non-flagged unopened cells will be opened, a process known as chording.
-*/
-
-#![allow(unused_variables)]
-#![allow(dead_code)]
+//Rules: (via: https://en.wikipedia.org/wiki/Minesweeper_(video_game))
 
 use rand::Rng;
 
@@ -107,6 +96,7 @@ pub fn is_action_allowed(game: &Game, action_kind: &ActionKind) -> bool {
 
 #[allow(unused_parens)]
 pub fn flag(game: &mut Game, action_kind: &ActionKind) {
+    // flag and unflag with the same action
     if let ActionKind::Flag(x, y) = action_kind {
         if (game.board[*y][*x].cell_state == CellState::Unopened) {
             if (game.flag_count > 0) {
@@ -124,26 +114,60 @@ pub fn flag(game: &mut Game, action_kind: &ActionKind) {
 }
 
 #[allow(unused_parens)]
+pub fn cell_without_mine(game: &mut Game) -> &mut Cell {
+    // returns a random cell without a mine on it
+
+    let columns = game.board[0].len(); // X
+    let rows = game.board.len(); // Y
+
+    let cell_count = columns * rows;
+
+    let random_number = rand::thread_rng().gen_range(0..cell_count);
+
+    let cell_without_mine_y = random_number / columns;
+    let cell_without_mine_x = random_number % columns;
+
+    if (game.board[cell_without_mine_y][cell_without_mine_x].cell_content == CellContent::Mine) {
+        return cell_without_mine(game);
+    }
+    return &mut game.board[cell_without_mine_y][cell_without_mine_x];
+}
+
+pub fn move_mine_away(game: &mut Game, mine_x: usize, mine_y: usize) {
+    cell_without_mine(game).cell_content = CellContent::Mine;
+    game.board[mine_y][mine_x].cell_content = CellContent::Blank;
+    set_blanks_and_numbers(game);
+}
+
+#[allow(unused_parens)]
 pub fn open(game: &mut Game, action_kind: &ActionKind) {
     if let ActionKind::Open(x, y) = action_kind {
-        if game.board[*y][*x].cell_state == CellState::Opened {
+        if (game.board[*y][*x].cell_content == CellContent::Mine && game.opened_count == 0) {
+            let mine_x = *x;
+            let mine_y = *y;
+            move_mine_away(game, mine_x, mine_y);
+            open(game, action_kind);
+            return;
+        }
+
+        if (game.board[*y][*x].cell_state == CellState::Opened) {
             return;
         }
 
         if let CellContent::Number(_) = game.board[*y][*x].cell_content {
             game.board[*y][*x].cell_state = CellState::Opened;
-            game.opened_counter += 1;
+            game.opened_count += 1;
         }
 
         if (game.board[*y][*x].cell_content == CellContent::Blank) {
             game.board[*y][*x].cell_state = CellState::Opened;
-            game.opened_counter += 1;
+            game.opened_count += 1;
             flood_fill(game, &y, &x);
         }
 
         if (game.board[*y][*x].cell_content == CellContent::Mine) {
             game.board[*y][*x].cell_state = CellState::Opened;
-            game.opened_counter += 1;
+            game.opened_count += 1;
             boom(game);
         }
     }
@@ -170,9 +194,16 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
                     }
 
                     if let CellContent::Number(_) = game.board[ny][nx].cell_content {
+                        if (game.board[ny][nx].cell_state == CellState::Flagged) {
+                            flag(game, &ActionKind::Flag((nx), (ny)));
+                        }
                         open(game, &ActionKind::Open((nx), (ny)));
                     }
+
                     if let CellContent::Blank = game.board[ny][nx].cell_content {
+                        if (game.board[ny][nx].cell_state == CellState::Flagged) {
+                            flag(game, &ActionKind::Flag((nx), (ny)));
+                        }
                         open(game, &ActionKind::Open((nx), (ny)));
                     }
                 }
@@ -182,7 +213,7 @@ pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
 }
 
 #[allow(unused_parens)]
-pub fn reveal_bombs(game: &mut Game) {
+pub fn reveal_mines(game: &mut Game) {
     let height = game.board.len();
     let width = game.board[0].len();
 
@@ -195,17 +226,16 @@ pub fn reveal_bombs(game: &mut Game) {
     }
 }
 
-pub fn boom(game: &mut Game) -> bool {
+pub fn boom(game: &mut Game) {
     game.game_over = true;
     game.game_won = false;
 
-    reveal_bombs(game);
-
-    return game.game_over;
+    reveal_mines(game);
 }
 
 #[allow(unused_parens)]
 pub fn adjacent_mines(game: &Game, y: &usize, x: &usize) -> u8 {
+    // counts the mines around a cell
     let mut count = 0;
     for dy in -1..=1 {
         for dx in -1..=1 {
@@ -232,7 +262,7 @@ pub fn adjacent_mines(game: &Game, y: &usize, x: &usize) -> u8 {
 }
 
 #[allow(unused_parens)]
-pub fn set_blancs_and_numbers(game: &mut Game) {
+pub fn set_blanks_and_numbers(game: &mut Game) {
     let height = game.board.len();
     let width = game.board[0].len();
     for y in 0..height {
@@ -253,7 +283,7 @@ pub fn set_blancs_and_numbers(game: &mut Game) {
 #[derive(Clone, PartialEq, Debug, Eq)]
 pub struct Game {
     pub board: Vec<Vec<Cell>>,
-    pub opened_counter: usize,
+    pub opened_count: usize,
     pub mine_count: usize,
     pub flag_count: usize,
     pub game_over: bool,
@@ -273,10 +303,7 @@ impl Minesweeper for Game {
             cell_content: CellContent::Blank,
             cell_state: CellState::Unopened,
         };
-        let mine_cell = Cell {
-            cell_content: CellContent::Mine,
-            cell_state: CellState::Unopened,
-        };
+
         let (mut board, mine_count) = match difficulty {
             Difficulty::Easy => {
                 (vec![vec![default_cell; 9]; 9], 10) // 9x9, 10 Mines
@@ -288,33 +315,33 @@ impl Minesweeper for Game {
                 (vec![vec![default_cell; 22]; 22], 80) // 22x22, 80 Mines
             }
             Difficulty::Expert => {
-                (vec![vec![default_cell; 30]; 16], 99) // 30x16, 99 Mines
+                (vec![vec![default_cell; 22]; 22], 101) // 22x22, 101 Mines
             }
         };
-        let column = board[0].len(); // X
+        let columns = board[0].len(); // X
         let rows = board.len(); // Y
 
-        let cell_count = column * rows;
-        let mut no_dupes: Vec<usize> = Vec::new();
-        while (no_dupes.len() < mine_count) {
+        let cell_count = columns * rows;
+        let mut placed_mines_indices: Vec<usize> = Vec::new();
+        while (placed_mines_indices.len() < mine_count) {
             let random_number = rand::thread_rng().gen_range(0..cell_count);
-            if !(no_dupes.contains(&random_number)) {
-                no_dupes.push(random_number);
-                let y = random_number / column;
-                let x = random_number % column;
+            if !(placed_mines_indices.contains(&random_number)) {
+                placed_mines_indices.push(random_number);
+                let y = random_number / columns;
+                let x = random_number % columns;
                 board[y][x].cell_content = CellContent::Mine;
             }
         }
         let mut game = Game {
             board: board,
-            opened_counter: 0,
+            opened_count: 0,
             mine_count: mine_count,
             flag_count: mine_count,
             game_over: false,
             game_won: false,
         };
 
-        set_blancs_and_numbers(&mut game);
+        set_blanks_and_numbers(&mut game);
 
         return game;
     }
@@ -329,7 +356,7 @@ impl Minesweeper for Game {
                 open(self, &action_kind);
                 self.winner();
                 if (self.game_won == true) {
-                    reveal_bombs(self);
+                    reveal_mines(self);
                 }
                 Ok(())
             }
@@ -337,7 +364,7 @@ impl Minesweeper for Game {
                 flag(self, &action_kind);
                 self.winner();
                 if (self.game_won == true) {
-                    reveal_bombs(self);
+                    reveal_mines(self);
                 }
                 Ok(())
             }
@@ -352,7 +379,7 @@ impl Minesweeper for Game {
         let total_cells = self.board.len() * self.board[0].len();
         let safe_cells = total_cells - self.mine_count;
 
-        if (self.opened_counter == safe_cells) {
+        if (self.opened_count == safe_cells) {
             self.game_won = true;
             return true;
         }
