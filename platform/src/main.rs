@@ -5,6 +5,8 @@ use go::GoGame;
 use kniffel::KniffelGame;
 use minesweeper::MinesweeperGame;
 
+use std::error::Error;
+
 enum AppState {
     Menu,
     Playing(Box<dyn Game>),

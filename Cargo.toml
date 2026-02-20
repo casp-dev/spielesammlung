@@ -6,6 +6,6 @@ members = [
     "games/kniffel",
     "games/minesweeper",
     "games/go",
-
+    "server",
 ]
 resolver = "2"
