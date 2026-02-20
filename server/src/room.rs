@@ -7,14 +7,12 @@ pub type PlayerSender = mpsc::UnboundedSender<String>;
 
 // Spielraum
 pub struct Room {
-    pub id: String,
     pub players: HashMap<PlayerId, PlayerSender>,
 }
 
 impl Room {
-    pub fn new(id: String) -> Self {
+    pub fn new() -> Self {
         Self {
-            id,
             players: HashMap::new(),
         }
     }
@@ -53,7 +51,7 @@ impl RoomManager {
 
     pub async fn create_room(&self) -> String {
         let room_id = generate_room_id();
-        let room = Room::new(room_id.clone());
+        let room = Room::new();
 
         let mut rooms = self.rooms.write().await;
         rooms.insert(room_id.clone(), room);
