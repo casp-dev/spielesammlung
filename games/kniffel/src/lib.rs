@@ -1,5 +1,7 @@
+mod bot;
 mod kniffel;
 
+use crate::bot::*;
 use crate::kniffel::*;
 use game_core::Game;
 use kniffel::{next_player, throw_dice, YahtzeeGame};
@@ -30,7 +32,7 @@ impl KniffelGame {
             players: 2,
             player_buttons: vec![vec![None; 13]; 2],
             bots: 0,
-            game: <kniffel::Game as YahtzeeGame>::new(2).unwrap(),
+            game: <kniffel::Game as YahtzeeGame>::new(2, 0).unwrap(),
         }
     }
 }
@@ -78,13 +80,15 @@ impl KniffelGame {
         ui.separator();
 
         if ui.button("Spiel starten").clicked() {
-            self.game = <kniffel::Game as YahtzeeGame>::new(self.players + self.bots).unwrap();
+            self.game = <kniffel::Game as YahtzeeGame>::new(self.players, self.bots).unwrap();
             self.player_buttons = vec![vec![None; 13]; self.players + self.bots];
             self.screen = Screen::InGame;
         }
     }
 
     fn ui_game(&mut self, ui: &mut egui::Ui) {
+        self.process_bot_turns();
+
         egui::SidePanel::left("kniffel_side_panel").show_inside(ui, |ui| {
             ui.heading("Punktetabelle");
             ui.separator();
@@ -219,6 +223,28 @@ impl KniffelGame {
 }
 
 impl KniffelGame {
+    fn process_bot_turns(&mut self) {
+        while self.game.current_player.is_bot() {
+            let bot_index = self.game.current_player_index;
+
+            bot_game_turn(&mut self.game);
+
+            //aktualisiere player buttons; finde neu gefüllte Kategorie
+            for cat in 0..13 {
+                if self.player_buttons[bot_index][cat].is_none()
+                    && self.game.all_players[bot_index].point_table.points_thrown[cat].is_some()
+                {
+                    if let Some(points) =
+                        self.game.all_players[bot_index].point_table.points_thrown[cat]
+                    {
+                        self.player_buttons[bot_index][cat] = Some(points as u32);
+                    }
+                }
+            }
+            next_player(&mut self.game);
+        }
+    }
+
     fn render_point_cells(&mut self, ui: &mut egui::Ui, category: usize) {
         let active_players = self.players + self.bots;
 
@@ -262,6 +288,8 @@ impl KniffelGame {
                 }
 
                 next_player(&mut self.game);
+
+                self.process_bot_turns();
             }
         }
     }

@@ -34,7 +34,7 @@ impl Engine {
                 level_t,
                 turn_t,
                 f32::NEG_INFINITY,
-                    f32::INFINITY,
+                f32::INFINITY,
                 meeples.0.clone(),
                 meeples.1.clone(),
             )
