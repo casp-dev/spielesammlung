@@ -238,29 +238,37 @@ impl CoreGame for GoGame {
                         }
                     }
 
-                    // Hover
-                    if let Some(pos) = response.hover_pos() {
-                        if !self.game.game_over && rect.contains(pos) {
-                            let relative_pos = pos - grid_rect.min;
-                            let x_f = relative_pos.x / cell_size;
-                            let y_f = relative_pos.y / cell_size;
+                    // Hover (im Multiplayer nur für eigene Steine)
+                    let show_hover = if self.multiplayer {
+                        self.my_color == Some(self.game.current_turn)
+                    } else {
+                        true
+                    };
 
-                            let x = x_f.round() as i32;
-                            let y = y_f.round() as i32;
+                    if show_hover {
+                        if let Some(pos) = response.hover_pos() {
+                            if !self.game.game_over && rect.contains(pos) {
+                                let relative_pos = pos - grid_rect.min;
+                                let x_f = relative_pos.x / cell_size;
+                                let y_f = relative_pos.y / cell_size;
 
-                            if x >= 0
-                                && x < grid_size as i32
-                                && y >= 0
-                                && y < grid_size as i32
-                            {
-                                if self.game.board.get(x as usize, y as usize).is_none() {
-                                    let center = grid_rect.min
-                                        + egui::vec2(x as f32 * cell_size, y as f32 * cell_size);
-                                    let color = match self.game.current_turn {
-                                        Stone::Black => egui::Color32::from_black_alpha(100),
-                                        Stone::White => egui::Color32::from_white_alpha(100),
-                                    };
-                                    painter.circle_filled(center, cell_size * 0.4, color);
+                                let x = x_f.round() as i32;
+                                let y = y_f.round() as i32;
+
+                                if x >= 0
+                                    && x < grid_size as i32
+                                    && y >= 0
+                                    && y < grid_size as i32
+                                {
+                                    if self.game.board.get(x as usize, y as usize).is_none() {
+                                        let center = grid_rect.min
+                                            + egui::vec2(x as f32 * cell_size, y as f32 * cell_size);
+                                        let color = match self.game.current_turn {
+                                            Stone::Black => egui::Color32::from_black_alpha(100),
+                                            Stone::White => egui::Color32::from_white_alpha(100),
+                                        };
+                                        painter.circle_filled(center, cell_size * 0.4, color);
+                                    }
                                 }
                             }
                         }
@@ -383,6 +391,53 @@ impl CoreGame for GoGame {
                     ui.vertical(|ui| {
                         ui.set_min_width(170.0);
 
+                        // Spieler-Anzeige (Multiplayer)
+                        if self.multiplayer {
+                            if let Some(my_color) = self.my_color {
+                                ui.group(|ui| {
+                                    ui.horizontal(|ui| {
+                                        let color_text = match my_color {
+                                            Stone::Black => "Schwarz",
+                                            Stone::White => "Weiß",
+                                        };
+                                        let (stone_rect, _) = ui.allocate_exact_size(
+                                            egui::vec2(14.0, 14.0),
+                                            egui::Sense::hover(),
+                                        );
+                                        let c = stone_rect.center();
+                                        match my_color {
+                                            Stone::Black => {
+                                                ui.painter()
+                                                    .circle_filled(c, 7.0, egui::Color32::BLACK);
+                                                ui.painter().circle_stroke(
+                                                    c,
+                                                    7.0,
+                                                    egui::Stroke::new(
+                                                        1.0,
+                                                        egui::Color32::from_gray(80),
+                                                    ),
+                                                );
+                                            }
+                                            Stone::White => {
+                                                ui.painter()
+                                                    .circle_filled(c, 7.0, egui::Color32::WHITE);
+                                                ui.painter().circle_stroke(
+                                                    c,
+                                                    7.0,
+                                                    egui::Stroke::new(1.0, egui::Color32::GRAY),
+                                                );
+                                            }
+                                        }
+                                        ui.label(
+                                            egui::RichText::new(format!("Du spielst {}", color_text))
+                                                .strong(),
+                                        );
+                                    });
+                                });
+                                ui.add_space(4.0);
+                            }
+                        }
+
                         // Zug-Anzeige
                         ui.group(|ui| {
                             ui.horizontal(|ui| {
@@ -418,8 +473,15 @@ impl CoreGame for GoGame {
                                         );
                                     }
                                 }
+                                let label_text = if self.multiplayer && self.my_color == Some(self.game.current_turn) {
+                                    "Du bist dran!".to_owned()
+                                } else if self.multiplayer {
+                                    format!("{} am Zug (Gegner)", turn_text)
+                                } else {
+                                    format!("{} am Zug", turn_text)
+                                };
                                 ui.label(
-                                    egui::RichText::new(format!("{} am Zug", turn_text))
+                                    egui::RichText::new(label_text)
                                         .strong(),
                                 );
                             });
