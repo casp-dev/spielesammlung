@@ -123,6 +123,20 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, state: Arc<Serve
                             continue;
                         }
 
+                        // Max 2 Spieler pro Raum
+                        let count = state.rooms.player_count(&room_id).await;
+                        if count >= 2 {
+                            let err = ServerMessage::Error {
+                                message: format!("Raum {} ist voll (max. 2 Spieler)", room_id),
+                            };
+                            let _ = tx.send(err.to_json());
+                            println!(
+                                "[Server] Spieler {} abgelehnt: Raum {} ist voll",
+                                player_id, room_id
+                            );
+                            continue;
+                        }
+
                         if let Some(ref old_room) = current_room {
                             state.rooms.leave_room(old_room, player_id).await;
                         }

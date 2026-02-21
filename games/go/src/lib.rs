@@ -429,7 +429,7 @@ impl CoreGame for GoGame {
                                             }
                                         }
                                         ui.label(
-                                            egui::RichText::new(format!("Du spielst {}", color_text))
+                                            egui::RichText::new(format!("Du bist {}", color_text))
                                                 .strong(),
                                         );
                                     });
@@ -537,11 +537,26 @@ impl CoreGame for GoGame {
                         // Buttons
                         let btn_size = egui::vec2(170.0, 28.0);
 
-                        if ui
-                            .add_sized(btn_size, egui::Button::new("Passen"))
-                            .clicked()
-                        {
+                        let pass_allowed = if self.multiplayer {
+                            self.my_color == Some(self.game.current_turn)
+                        } else {
+                            true
+                        };
+
+                        let pass_button = ui.add_sized(
+                            btn_size,
+                            egui::Button::new("Passen"),
+                        );
+
+                        if pass_button.clicked() && pass_allowed && !self.game.game_over {
                             self.game.pass();
+
+                            // Pass an Gegner senden
+                            if self.multiplayer {
+                                let pass_msg = r#"{ "type": "GameMove", "data": { "pass": true } }"#;
+                                let _ = self.send(pass_msg);
+                            }
+
                             if self.game.game_over {
                                 let (b_score, w_score) = self.game.calculate_score();
                                 self.status_message = format!(
@@ -629,7 +644,24 @@ impl MultiplayerGame for GoGame {
         if let Ok(v) = serde_json::from_str::<Value>(&msg) {
             if v.get("type").and_then(|t| t.as_str()) == Some("GameMove") {
                 if let Some(data) = v.get("data") {
-                    if let (Some(x), Some(y)) = (
+                    // Pass-Zug
+                    if data.get("pass").and_then(|p| p.as_bool()) == Some(true) {
+                        self.game.pass();
+                        if self.game.game_over {
+                            let (b_score, w_score) = self.game.calculate_score();
+                            self.status_message = format!(
+                                "Spiel vorbei! Schwarz {:.1} — Weiß {:.1}",
+                                b_score, w_score
+                            );
+                        } else {
+                            self.status_message = format!(
+                                "Gegner hat gepasst. {:?} ist am Zug.",
+                                self.game.current_turn
+                            );
+                        }
+                    }
+                    // Normaler Zug
+                    else if let (Some(x), Some(y)) = (
                         data.get("x").and_then(|v| v.as_u64()),
                         data.get("y").and_then(|v| v.as_u64()),
                     ) {
