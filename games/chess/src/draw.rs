@@ -4,6 +4,7 @@ use crate::{
 };
 
 pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
+    let last_move = game.logs.last().unwrap().clone();
     egui::Grid::new("chess_board")
         .spacing(egui::vec2(0.0, 0.0))
         .show(ui, |ui| {
@@ -28,6 +29,9 @@ pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
 
                     //highlight color
                     let mut button_color = bg_color;
+                    if (x,y) == last_move.0 || (x,y) == last_move.1 {
+                        button_color = egui::Color32::from_rgb(246, 246, 105);
+                    }
                     if let Some(possible_moves) = &game.shown_moves {
                         if possible_moves.contains(&(x, y)) {
                             button_color = egui::Color32::from_rgb(100, 255, 100);
