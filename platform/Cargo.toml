@@ -11,4 +11,5 @@ kniffel = { path = "../games/kniffel" }
 minesweeper = { path = "../games/minesweeper" }
 egui = "0.29.1"
 eframe = "0.29.1"
+image = { version = "0.25", default-features = false, features = ["png"] }
 

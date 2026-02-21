@@ -78,7 +78,9 @@ impl eframe::App for PlatformApp {
 
                     let grid_width = 200.0 * 2.0 + 20.0; // 2 Buttons + Spacing
                     let app_center_width = (ui.available_width() - (grid_width)) / 2.0; // find middle of the app window
+                    
                     ui.add_space(app_center_width.max(0.0)); // move the grid from the left to the middle
+
 
                     egui::Grid::new("menu_grid")
                         .spacing([20.0, 20.0])
@@ -89,17 +91,8 @@ impl eframe::App for PlatformApp {
                             let button_chess = egui::Button::new(text_chess)
                                 .min_size(Vec2::new(200.0, 150.0))
                                 .rounding(10.0)
-                                .fill(Color32::LIGHT_BLUE)
-                                .stroke(egui::Stroke::NONE);
+                                .fill(Color32::LIGHT_BLUE);
                             let response = ui.add(button_chess);
-                            if response.hovered() {
-                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                                ui.painter().rect_stroke(
-                                    response.rect.expand(2.0),
-                                    12.0,
-                                    egui::Stroke::new(2.0, Color32::YELLOW)
-                                );
-                            }
                             if response.clicked() {
                                 self.state = AppState::Playing(Box::new(ChessGame::new()));
                             }
@@ -108,17 +101,8 @@ impl eframe::App for PlatformApp {
                             let button_go = egui::Button::new(text_go)
                                 .min_size(Vec2::new(200.0, 150.0))
                                 .rounding(10.0)
-                                .fill(Color32::DARK_BLUE)
-                                .stroke(egui::Stroke::NONE);
+                                .fill(Color32::DARK_BLUE);
                             let response = ui.add(button_go);
-                            if response.hovered() {
-                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                                ui.painter().rect_stroke(
-                                    response.rect.expand(2.0),
-                                    12.0,
-                                    egui::Stroke::new(2.0, Color32::YELLOW)
-                                );
-                            }
                             if response.clicked() {
                                 self.state = AppState::Playing(Box::new(GoGame::new()));
                             }
@@ -130,17 +114,8 @@ impl eframe::App for PlatformApp {
                             let button_kniffel = egui::Button::new(text_kniffel)
                                 .min_size(Vec2::new(200.0, 150.0))
                                 .rounding(10.0)
-                                .fill(Color32::DARK_BLUE)
-                                .stroke(egui::Stroke::NONE);
+                                .fill(Color32::DARK_BLUE);
                             let response = ui.add(button_kniffel);
-                            if response.hovered() {
-                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                                ui.painter().rect_stroke(
-                                    response.rect.expand(2.0),
-                                    12.0,
-                                    egui::Stroke::new(2.0, Color32::YELLOW)
-                                );
-                            }
                             if response.clicked() {
                                 self.state = AppState::Playing(Box::new(KniffelGame::new()));
                             }
@@ -152,17 +127,8 @@ impl eframe::App for PlatformApp {
                             let button_minesweeper = egui::Button::new(text_minesweeper)
                                 .min_size(Vec2::new(200.0, 150.0))
                                 .rounding(10.0)
-                                .fill(Color32::LIGHT_BLUE)
-                                .stroke(egui::Stroke::NONE);
+                                .fill(Color32::LIGHT_BLUE);
                             let response = ui.add(button_minesweeper);
-                            if response.hovered() {
-                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                                ui.painter().rect_stroke(
-                                    response.rect.expand(2.0),
-                                    12.0,
-                                    egui::Stroke::new(2.0, Color32::YELLOW)
-                                );
-                            }
                             if response.clicked() {
                                 self.state = AppState::Playing(Box::new(MinesweeperGame::new()));
                             }
@@ -184,10 +150,24 @@ impl eframe::App for PlatformApp {
 }
 
 fn main() -> eframe::Result<()> {
+
+    let icon_data = include_bytes!("app_icon/image.png");
+    let icon_image = image::load_from_memory(icon_data)
+        .expect("Failed to load icon")
+        .to_rgba8();
+    let (icon_width, icon_height) = icon_image.dimensions();
+    
+    let icon = egui::IconData {
+        rgba: icon_image.into_raw(),
+        width: icon_width,
+        height: icon_height,
+    };
+    
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([600.0, 500.0]) // Set the initial window size of the Platform Window
-            .with_min_inner_size([600.0, 500.0]), // Set the minimum window size of the Platform Window
+            .with_min_inner_size([600.0, 500.0]) // Set the minimum window size of the Platform Window
+            .with_icon(icon), // Set the app icon
         ..Default::default()
     };
     eframe::run_native(

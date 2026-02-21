@@ -2327,6 +2327,7 @@ dependencies = [
  "egui",
  "game_core",
  "go",
+ "image",
  "kniffel",
  "minesweeper",
 ]
