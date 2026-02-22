@@ -218,7 +218,16 @@ async fn handle_connection(stream: TcpStream, addr: SocketAddr, state: Arc<Serve
 
     // Aufräumen: Raum verlassen bei Disconnect
     if let Some(ref room_id) = current_room {
+        let player_number = state.rooms.player_count(room_id).await;
         state.rooms.leave_room(room_id, player_id).await;
+
+        // Verbleibende Spieler benachrichtigen
+        let notify = ServerMessage::PlayerLeft { player_number };
+        state
+            .rooms
+            .broadcast(room_id, &notify.to_json(), None)
+            .await;
+
         println!(
             "[Server] Spieler {} hat Raum {} verlassen (disconnect)",
             player_id, room_id

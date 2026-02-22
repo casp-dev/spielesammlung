@@ -581,6 +581,12 @@ impl CoreGame for GoGame {
                             self.status_message =
                                 "Spiel neugestartet. Schwarz ist am Zug.".to_owned();
                             self.ai_stats_message.clear();
+
+                            // Neustart an Gegner senden
+                            if self.multiplayer {
+                                let restart_msg = r#"{ "type": "GameMove", "data": { "restart": true } }"#;
+                                let _ = self.send(restart_msg);
+                            }
                         }
 
                         ui.add_space(4.0);
@@ -640,35 +646,54 @@ impl eframe::App for GoGame {
 
 impl MultiplayerGame for GoGame {
     fn on_text(&mut self, msg: String) {
-        // Parse GameMove von server
         if let Ok(v) = serde_json::from_str::<Value>(&msg) {
-            if v.get("type").and_then(|t| t.as_str()) == Some("GameMove") {
-                if let Some(data) = v.get("data") {
-                    // Pass-Zug
-                    if data.get("pass").and_then(|p| p.as_bool()) == Some(true) {
-                        self.game.pass();
-                        if self.game.game_over {
-                            let (b_score, w_score) = self.game.calculate_score();
-                            self.status_message = format!(
-                                "Spiel vorbei! Schwarz {:.1} — Weiß {:.1}",
-                                b_score, w_score
-                            );
-                        } else {
-                            self.status_message = format!(
-                                "Gegner hat gepasst. {:?} ist am Zug.",
-                                self.game.current_turn
-                            );
+            let msg_type = v.get("type").and_then(|t| t.as_str());
+
+            match msg_type {
+                Some("GameMove") => {
+                    if let Some(data) = v.get("data") {
+                        // Pass-Zug
+                        if data.get("pass").and_then(|p| p.as_bool()) == Some(true) {
+                            self.game.pass();
+                            if self.game.game_over {
+                                let (b_score, w_score) = self.game.calculate_score();
+                                self.status_message = format!(
+                                    "Spiel vorbei! Schwarz {:.1} — Weiß {:.1}",
+                                    b_score, w_score
+                                );
+                            } else {
+                                self.status_message = format!(
+                                    "Gegner hat gepasst. {:?} ist am Zug.",
+                                    self.game.current_turn
+                                );
+                            }
+                        } else if data.get("restart").and_then(|r| r.as_bool()) == Some(true) {
+                            self.game = Game::new(19);
+                            self.status_message =
+                                "Gegner hat neugestartet. Schwarz ist am Zug.".to_owned();
+                            self.ai_stats_message.clear();
+                        }
+                        // Normaler Zug
+                        else if let (Some(x), Some(y)) = (
+                            data.get("x").and_then(|v| v.as_u64()),
+                            data.get("y").and_then(|v| v.as_u64()),
+                        ) {
+                            let _ = self.game.place_stone(x as usize, y as usize);
+                            self.status_message =
+                                format!("{:?} ist am Zug.", self.game.current_turn);
                         }
                     }
-                    // Normaler Zug
-                    else if let (Some(x), Some(y)) = (
-                        data.get("x").and_then(|v| v.as_u64()),
-                        data.get("y").and_then(|v| v.as_u64()),
-                    ) {
-                        let _ = self.game.place_stone(x as usize, y as usize);
-                        self.status_message = format!("{:?} ist am Zug.", self.game.current_turn);
-                    }
                 }
+                Some("PlayerLeft") => {
+                    self.multiplayer = false;
+                    self.my_color = None;
+                    self.client = None;
+                    self.game = Game::new(19);
+                    self.game_state = GoGameState::Menu;
+                    self.status_message = "Gegner hat das Spiel verlassen.".to_owned();
+                    self.ai_stats_message.clear();
+                }
+                _ => {}
             }
         }
     }
