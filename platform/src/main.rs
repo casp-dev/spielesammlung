@@ -5,7 +5,7 @@ use go::GoGame;
 use kniffel::KniffelGame;
 use minesweeper::MinesweeperGame;
 
-use egui::{Color32, RichText, Vec2};
+use egui::{Vec2, Image, ImageSource};
 
 #[derive(PartialEq)]
 enum AppTheme {
@@ -21,38 +21,57 @@ enum AppState {
 struct PlatformApp {
     state: AppState,
     theme: AppTheme,
+    chess_image: ImageSource<'static>,
+    go_image: ImageSource<'static>,
+    kniffel_image: ImageSource<'static>,
+    minesweeper_image: ImageSource<'static>,
 }
 
 impl PlatformApp {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        egui_extras::install_image_loaders(&cc.egui_ctx);
         Self {
             state: AppState::Menu,
             theme: AppTheme::Dark, // Default theme is dark
+            chess_image : egui::include_image!("images/chess.png"),
+            go_image : egui::include_image!("images/GO.png"),
+            kniffel_image : egui::include_image!("images/Kniffel.png"),
+            minesweeper_image : egui::include_image!("images/Minesweeper.png"),
         }
     }
 }
 
-pub fn add_game_button(ui: &mut egui::Ui, text: &str, text_size: f32, color: Color32, height: f32, width: f32) -> egui::Response {
-    let button_rounding = 10.0;
-    let rich_text = RichText::new(text).size(text_size).color(Color32::WHITE).strong();
-    let button = egui::Button::new(rich_text)
-        .min_size(Vec2::new(width, height))
-        .rounding(button_rounding)
-        .fill(color);
+pub fn game_button(ui: &mut egui::Ui, game_image: impl Into<ImageSource<'static>>, height: f32, width: f32) -> egui::Response {
+
+    let image = Image::new(game_image)
+        .fit_to_exact_size(Vec2::new(width, height))
+        .rounding(10.0);
     
-    ui.add(button)
+    let button = egui::ImageButton::new(image);
+    
+    let response = ui.scope(|ui| {
+        ui.spacing_mut().button_padding = Vec2::ZERO;
+        ui.add(button)
+    }).inner;
+    
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    
+    response
 }
 
 impl eframe::App for PlatformApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) { // better name: paltform_ui
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) { // better name: platform_ui
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.state {
 
             AppState::Menu => {
 
             match self.theme {
+
                 AppTheme::Light => {
-                ctx.set_visuals(egui::Visuals::light());
-                ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Light));
+                ctx.set_visuals(egui::Visuals::light()); // for the window content itself
+                ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Light)); // for the os window frame
                 }
 
                 AppTheme::Dark => {
@@ -65,7 +84,7 @@ impl eframe::App for PlatformApp {
             let available_height = ui.available_height();
 
             let button_width = (available_width * 0.3).clamp(85.0, 400.0);
-            let button_height = (available_height * 0.3).clamp(85.0, 400.0);
+            let button_height = button_width;
 
             let heading_height = 10.0; // assumed height of "Wähle ein Spiel:"
             let spacing = 20.0;
@@ -108,21 +127,21 @@ impl eframe::App for PlatformApp {
                         .spacing([spacing, spacing])
                         .show(ui, |ui| {
 
-                            if add_game_button(ui, "♛ Schach ♚", 30.0, Color32::LIGHT_BLUE, button_height, button_width).clicked() {
+                            if game_button(ui, self.chess_image.clone(), button_height, button_width).clicked() {
                                 self.state = AppState::Playing(Box::new(ChessGame::new()));
                             }
 
-                            if add_game_button(ui, "☯ Go ☯", 30.0, Color32::DARK_BLUE, button_height, button_width).clicked() {
+                            if game_button(ui, self.go_image.clone(), button_height, button_width).clicked() {
                                 self.state = AppState::Playing(Box::new(GoGame::new()));
                             }
 
                             ui.end_row();
 
-                            if add_game_button(ui, "🎲 Kniffel 🎲", 30.0, Color32::DARK_BLUE, button_height, button_width).clicked() {
+                            if game_button(ui, self.kniffel_image.clone(), button_height, button_width).clicked() {
                                 self.state = AppState::Playing(Box::new(KniffelGame::new()));
                             }
 
-                            if add_game_button(ui, "💣 Minesweeper 🚩", 20.0, Color32::LIGHT_BLUE, button_height, button_width).clicked() {
+                            if game_button(ui, self.minesweeper_image.clone(), button_height, button_width).clicked() {
                                 self.state = AppState::Playing(Box::new(MinesweeperGame::new()));
                             }
                     });
@@ -144,14 +163,15 @@ impl eframe::App for PlatformApp {
 
 fn main() -> eframe::Result<()> {
 
-    let icon_data = include_bytes!("app_icon/image.png");
+    let icon_data = include_bytes!("images/app_icon.png");
     let icon_image = image::load_from_memory(icon_data)
-        .expect("Failed to load icon")
-        .to_rgba8();
-    let (icon_width, icon_height) = icon_image.dimensions();
+        .expect("Failed to load app icon")
+        .to_rgba8(); // Konvertiert das Bild in das RGBA8-Format (Rot, Grün, Blau, Alpha/Transparenz mit je 8 Bit pro Kanal), da egui dieses Format für Icons erwartet.
+    let icon_width = icon_image.width();
+    let icon_height = icon_image.height();
     
     let icon = egui::IconData {
-        rgba: icon_image.into_raw(),
+        rgba: icon_image.into_raw(), // Extrahiert die rohen Pixeldaten (als flaches Vec<u8>) aus dem Bild, um sie an egui zu übergeben.
         width: icon_width,
         height: icon_height,
     };
