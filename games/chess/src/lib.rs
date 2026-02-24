@@ -476,7 +476,7 @@ impl Game for ChessGame {
             }
             draw_board(ui, self);
         } else {
-            self.multipalyer_ui(ui, true, false);
+            self.multiplayer_ui(ui, true, false);
         }
     }
 }
@@ -537,7 +537,7 @@ impl MultiplayerGame for ChessGame {
 
     fn bot_level_slider(&mut self, ui: &mut Ui) -> u16 {
         ui.add(
-            egui::Slider::new(&mut self.possible_bot_level, 1..=7).text("What level for the bot?"),
+            egui::Slider::new(&mut self.possible_bot_level, 1..=7).text("Bot Level"),
         );
         self.possible_bot_level
     }
