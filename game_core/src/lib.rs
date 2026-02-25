@@ -78,56 +78,78 @@ pub trait MultiplayerGame: Game {
         }
     }
 
-    fn multipalyer_ui(&mut self, ui: &mut Ui, bot_level: bool, player_count: bool) {
-        let available = ui.available_size();
+    fn multiplayer_ui(&mut self, ui: &mut Ui, bot_level: bool, player_count: bool) { // better name would be game_mode_selection_ui
 
-        let button_width = available.x * 0.5;
-        let button_height = available.y * 0.1;
+        let available_width = ui.available_width();
+        let available_height = ui.available_height();
 
-        let play_local =
-            egui::Button::new("Play Local").min_size(egui::vec2(button_width, button_height));
-        let play_vs_bot =
-            egui::Button::new("Play vs Bot").min_size(egui::vec2(button_width, button_height));
-        let create_muliplayer_room = egui::Button::new("Create Multiplayer Room")
-            .min_size(egui::vec2(button_width, button_height));
-        if player_count {
-            let count = self.player_count_slider(ui);
-            if ui.add(play_local).clicked() {
-                self.local_button_clicked(Some(count));
-            }
-        } else {
-            if ui.add(play_local).clicked() {
-                self.local_button_clicked(None);
-            }
-        }
-        if bot_level {
-            let level = self.bot_level_slider(ui);
-            if ui.add(play_vs_bot).clicked() {
-                self.bot_button_clicked(Some(level));
-            }
-        } else {
-            if ui.add(play_vs_bot).clicked() {
-                self.bot_button_clicked(None);
-            }
-        }
+        let button_width = (available_width * 0.3).clamp(300.0, 400.0);
+        let button_height = (available_height * 0.08).clamp(50.0, 100.0);
+        let button_spacing = 10.0;
+        let buffer = 75.0;
+
+        let total_buttons_height = (button_height * 3.0) + (button_spacing * 2.0);
+        let center_offset = (ui.available_height() - total_buttons_height) / 2.0 - buffer;
+
+        let text_size  = 20.0;
+
         ui.horizontal(|ui| {
-            if ui.add(create_muliplayer_room).clicked() {
+
+            ui.label("Schlüssel:");
+            ui.add(
+                egui::TextEdit::singleline(self.get_room_key_text())
+                    .desired_width(150.0),
+            );
+            if ui.button("Beitreten").clicked() {
+                self.join_room();
+            }
+        });
+
+        let mut bot_level_val = None;
+        if bot_level {
+            ui.horizontal(|ui| {
+                bot_level_val = Some(self.bot_level_slider(ui));
+            });
+        }
+
+        let mut player_count_val = None;
+        if player_count {
+            ui.horizontal(|ui| {
+                player_count_val = Some(self.player_count_slider(ui));
+            });
+        }
+
+        ui.vertical_centered(|ui| {
+
+            ui.add_space(center_offset);
+
+            let play_local_button = egui::Button::new(egui::RichText::new("Lokal Spielen").size(text_size))
+                .min_size(egui::vec2(button_width, button_height));
+            if ui.add(play_local_button).clicked() {
+                self.local_button_clicked(player_count_val);
+            }
+
+            ui.add_space(button_spacing);
+
+            let create_muliplayer_room_button = egui::Button::new(egui::RichText::new("Mehrspieler Raum erstellen").size(text_size))
+                .min_size(egui::vec2(button_width, button_height));
+            if ui.add(create_muliplayer_room_button).clicked() {
                 self.create_host_button_clicked();
             }
 
-            ui.add(
-                egui::TextEdit::singleline(self.get_room_key_text())
-                    .desired_width(button_width * 0.4),
-            );
+            ui.add_space(button_spacing);
 
-            if ui
-                .add(
-                    egui::Button::new("Join")
-                        .min_size(egui::vec2(button_width * 0.1, button_height)),
-                )
-                .clicked()
-            {
-                self.join_room();
+            let play_vs_bot_button = egui::Button::new(
+                egui::RichText::new(
+                    if let Some(level) = bot_level_val {
+                        format!("Spiele gegen einen Bot (Level {})", level)
+                    } else {
+                        "Spiele gegen einen Bot".to_string()
+                    }
+                ).size(text_size)
+            ).min_size(egui::vec2(button_width, button_height));
+            if ui.add(play_vs_bot_button).clicked() {
+                self.bot_button_clicked(bot_level_val);
             }
         });
     }

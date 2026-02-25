@@ -5,7 +5,7 @@ use go::GoGame;
 use kniffel::KniffelGame;
 use minesweeper::MinesweeperGame;
 
-use egui::{Color32, RichText, Vec2};
+use egui::{Vec2, Image, ImageSource};
 
 #[derive(PartialEq)]
 enum AppTheme {
@@ -21,27 +21,57 @@ enum AppState {
 struct PlatformApp {
     state: AppState,
     theme: AppTheme,
+    chess_image: ImageSource<'static>,
+    go_image: ImageSource<'static>,
+    kniffel_image: ImageSource<'static>,
+    minesweeper_image: ImageSource<'static>,
 }
 
 impl PlatformApp {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        egui_extras::install_image_loaders(&cc.egui_ctx);
         Self {
             state: AppState::Menu,
             theme: AppTheme::Dark, // Default theme is dark
+            chess_image : egui::include_image!("images/chess.png"),
+            go_image : egui::include_image!("images/GO.png"),
+            kniffel_image : egui::include_image!("images/Kniffel.png"),
+            minesweeper_image : egui::include_image!("images/Minesweeper.png"),
         }
     }
 }
 
+pub fn game_button(ui: &mut egui::Ui, game_image: impl Into<ImageSource<'static>>, height: f32, width: f32) -> egui::Response {
+
+    let image = Image::new(game_image)
+        .fit_to_exact_size(Vec2::new(width, height))
+        .rounding(10.0);
+    
+    let button = egui::ImageButton::new(image);
+    
+    let response = ui.scope(|ui| {
+        ui.spacing_mut().button_padding = Vec2::ZERO;
+        ui.add(button)
+    }).inner;
+    
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    
+    response
+}
+
 impl eframe::App for PlatformApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) { // better name: platform_ui
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.state {
 
             AppState::Menu => {
 
             match self.theme {
+
                 AppTheme::Light => {
-                ctx.set_visuals(egui::Visuals::light());
-                ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Light));
+                ctx.set_visuals(egui::Visuals::light()); // for the window content itself
+                ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Light)); // for the os window frame
                 }
 
                 AppTheme::Dark => {
@@ -49,6 +79,22 @@ impl eframe::App for PlatformApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(egui::SystemTheme::Dark));
                 }
             }
+
+            let available_width = ui.available_width();
+            let available_height = ui.available_height();
+
+            let button_width = (available_width * 0.3).clamp(85.0, 400.0);
+            let button_height = button_width;
+
+            let heading_height = 10.0; // assumed height of "Wähle ein Spiel:"
+            let spacing = 20.0;
+            let buffer = 50.0;
+
+            let grid_height = (button_height * 2.0) + spacing + heading_height + spacing + buffer;
+            let app_center_height = (available_height - grid_height) / 2.0;
+
+            let grid_width = (button_width * 2.0) + spacing;
+            let app_center_width = (available_width - grid_width) / 2.0;
 
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -67,67 +113,35 @@ impl eframe::App for PlatformApp {
 
             ui.vertical_centered(|ui| {
 
-                    let grid_hight = 150.0 * 2.0 + 20.0 + 80.0; // 2 Buttons + Spacing + Heading
-                    let app_center_hight = (ui.available_height() - (grid_hight)) / 2.0; // find middle of the app window
-                    ui.add_space(app_center_hight.max(0.0)); // move the grid form the top to the middle
+                    ui.add_space(app_center_height); // move the grid form the top to the middle
 
                     ui.heading("Wähle ein Spiel:");
-                    ui.add_space(20.0);
+                    ui.add_space(spacing);
 
                 ui.horizontal(|ui| {
+                    
+                    ui.add_space(app_center_width); // move the grid from the left to the middle
 
-                    let grid_width = 200.0 * 2.0 + 20.0; // 2 Buttons + Spacing
-                    let app_center_width = (ui.available_width() - (grid_width)) / 2.0; // find middle of the app window
-                    ui.add_space(app_center_width.max(0.0)); // move the grid from the left to the middle
 
                     egui::Grid::new("menu_grid")
-                        .spacing([20.0, 20.0])
+                        .spacing([spacing, spacing])
                         .show(ui, |ui| {
 
-                            let text_chess = // Chess button
-                                RichText::new("♛ Schach ♚").size(30.0).color(Color32::WHITE).strong();
-                            let button_chess = egui::Button::new(text_chess)
-                                .min_size(Vec2::new(200.0, 150.0))
-                                .rounding(10.0)
-                                .fill(Color32::LIGHT_BLUE)
-                                .stroke(egui::Stroke::NONE);
-                            if ui.add(button_chess).clicked() {
+                            if game_button(ui, self.chess_image.clone(), button_height, button_width).clicked() {
                                 self.state = AppState::Playing(Box::new(ChessGame::new()));
                             }
 
-                            let text_go = RichText::new("☯ Go ☯").size(30.0).color(Color32::WHITE).strong(); // Go button
-                            let button_go = egui::Button::new(text_go)
-                                .min_size(Vec2::new(200.0, 150.0))
-                                .rounding(10.0)
-                                .fill(Color32::DARK_BLUE)
-                                .stroke(egui::Stroke::NONE);
-                            if ui.add(button_go).clicked() {
+                            if game_button(ui, self.go_image.clone(), button_height, button_width).clicked() {
                                 self.state = AppState::Playing(Box::new(GoGame::new()));
                             }
 
                             ui.end_row();
 
-                            let text_kniffel = // Kniffel Button
-                                RichText::new("🎲 Kniffel 🎲").size(30.0).color(Color32::WHITE).strong();
-                            let button_kniffel = egui::Button::new(text_kniffel)
-                                .min_size(Vec2::new(200.0, 150.0))
-                                .rounding(10.0)
-                                .fill(Color32::DARK_BLUE)
-                                .stroke(egui::Stroke::NONE);
-                            if ui.add(button_kniffel).clicked() {
+                            if game_button(ui, self.kniffel_image.clone(), button_height, button_width).clicked() {
                                 self.state = AppState::Playing(Box::new(KniffelGame::new()));
                             }
 
-                            let text_minesweeper = RichText::new("💣 Minesweeper 🚩") // Minesweeper button
-                                .size(20.0)
-                                .color(Color32::WHITE)
-                                .strong();
-                            let button_minesweeper = egui::Button::new(text_minesweeper)
-                                .min_size(Vec2::new(200.0, 150.0))
-                                .rounding(10.0)
-                                .fill(Color32::LIGHT_BLUE)
-                                .stroke(egui::Stroke::NONE);
-                            if ui.add(button_minesweeper).clicked() {
+                            if game_button(ui, self.minesweeper_image.clone(), button_height, button_width).clicked() {
                                 self.state = AppState::Playing(Box::new(MinesweeperGame::new()));
                             }
                     });
@@ -148,12 +162,28 @@ impl eframe::App for PlatformApp {
 }
 
 fn main() -> eframe::Result<()> {
+
+    let icon_data = include_bytes!("images/app_icon.png");
+    let icon_image = image::load_from_memory(icon_data)
+        .expect("Failed to load app icon")
+        .to_rgba8(); // Konvertiert das Bild in das RGBA8-Format (Rot, Grün, Blau, Alpha/Transparenz mit je 8 Bit pro Kanal), da egui dieses Format für Icons erwartet.
+    let icon_width = icon_image.width();
+    let icon_height = icon_image.height();
+    
+    let icon = egui::IconData {
+        rgba: icon_image.into_raw(), // Extrahiert die rohen Pixeldaten (als flaches Vec<u8>) aus dem Bild, um sie an egui zu übergeben.
+        width: icon_width,
+        height: icon_height,
+    };
+    
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([600.0, 500.0]) // Set the initial window size of the Platform Window
-            .with_min_inner_size([600.0, 500.0]), // Set the minimum window size of the Platform Window
+            .with_inner_size([750.0, 695.0]) // Set the initial window size of the Platform Window
+            .with_min_inner_size([750.0, 695.0]) // Set the minimum window size of the Platform Window
+            .with_icon(icon), // Set the app icon
         ..Default::default()
     };
+
     eframe::run_native(
         "Spielesammlung",
         native_options,
