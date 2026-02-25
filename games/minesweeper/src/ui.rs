@@ -216,10 +216,11 @@ impl Game for MinesweeperGame {
 
                                     let button = if (is_highlighted == true) {
                                         egui::Button::new(text)
-                                            .min_size(Vec2::new(25.0, 25.0))
+                                            .min_size(Vec2::new(cell_size, cell_size))
                                             .fill(Color32::GRAY)
                                     } else {
-                                        egui::Button::new(text).min_size(Vec2::new(25.0, 25.0))
+                                        egui::Button::new(text)
+                                        .min_size(Vec2::new(cell_size, cell_size))
                                     };
 
                                     let click_or_flag = ui.add(button);
@@ -240,7 +241,7 @@ impl Game for MinesweeperGame {
                                             let fill_color = Color32::DARK_GRAY;
                                             let button = egui::Button::new("")
                                                 .fill(fill_color)
-                                                .min_size(Vec2::new(25.0, 25.0));
+                                                .min_size(Vec2::new(cell_size, cell_size));
                                             ui.add(button);
                                         }
                                         CellContent::Mine => {
@@ -248,7 +249,7 @@ impl Game for MinesweeperGame {
                                             let text = RichText::new("💣").color(Color32::WHITE);
                                             let button = egui::Button::new(text)
                                                 .fill(fill_color)
-                                                .min_size(Vec2::new(25.0, 25.0));
+                                                .min_size(Vec2::new(cell_size, cell_size));
                                             ui.add(button);
                                         }
                                         CellContent::Number(i) => {
@@ -257,7 +258,7 @@ impl Game for MinesweeperGame {
                                                 .size(20.0);
                                             let button = egui::Button::new(text)
                                                 .fill(color_for_mines_nearby(i))
-                                                .min_size(Vec2::new(25.0, 25.0));
+                                                .min_size(Vec2::new(cell_size, cell_size));
 
                                             let show_neighbors = ui.add(button);
 
@@ -270,13 +271,15 @@ impl Game for MinesweeperGame {
                                 }
 
                                 if (game.board[y][x].cell_state == CellState::Flagged) {
-                                    let text = RichText::new("🚩").color(Color32::RED);
+                                    let text = RichText::new("🚩")
+                                        .color(Color32::RED);
                                     let button = if (is_highlighted == true) {
                                         egui::Button::new(text)
-                                            .min_size(Vec2::new(25.0, 25.0))
+                                            .min_size(Vec2::new(cell_size, cell_size))
                                             .fill(Color32::GRAY)
                                     } else {
-                                        egui::Button::new(text).min_size(Vec2::new(25.0, 25.0))
+                                        egui::Button::new(text)
+                                        .min_size(Vec2::new(cell_size, cell_size))
                                     };
 
                                     let unflag = ui.add(button);
@@ -376,7 +379,8 @@ impl Game for MinesweeperGame {
                         for x in 0..width {
                             if (game.board[y][x].cell_state == CellState::Unopened) {
                                     let button =
-                                        egui::Button::new("").min_size(Vec2::new(25.0, 25.0));
+                                        egui::Button::new("")
+                                        .min_size(Vec2::new(cell_size, cell_size));
                                     let _click_or_flag = ui.add(button);
                                 }
 
@@ -387,7 +391,7 @@ impl Game for MinesweeperGame {
                                     CellContent::Blank => {
                                         let mut button = egui::Button::new("")
                                             .fill(Color32::DARK_GRAY)
-                                            .min_size(Vec2::new(25.0, 25.0));
+                                            .min_size(Vec2::new(cell_size, cell_size));
 
                                         if (self.last_opened_cell == Some((y, x))) {
                                             button = button.stroke(egui::Stroke::new(3.0, Color32::GOLD));
@@ -400,7 +404,7 @@ impl Game for MinesweeperGame {
                                         let text = RichText::new("💣").color(Color32::WHITE);
                                         let mut button = egui::Button::new(text)
                                             .fill(Color32::BLACK)
-                                            .min_size(Vec2::new(25.0, 25.0));
+                                            .min_size(Vec2::new(cell_size, cell_size));
                                             
                                         if (self.last_opened_cell == Some((y, x))) {
                                             button = button.stroke(egui::Stroke::new(3.0, Color32::RED));
@@ -416,7 +420,7 @@ impl Game for MinesweeperGame {
                                             .size(20.0);
                                         let mut button = egui::Button::new(text)
                                             .fill(fill_color)
-                                            .min_size(Vec2::new(25.0, 25.0));
+                                            .min_size(Vec2::new(cell_size, cell_size));
                                             
                                         if (self.last_opened_cell == Some((y, x))) {
                                             button = button.stroke(egui::Stroke::new(3.0, Color32::GOLD));
@@ -428,9 +432,11 @@ impl Game for MinesweeperGame {
                                 }
 
                                 if (game.board[y][x].cell_state == CellState::Flagged) {
-                                    let text = RichText::new("🚩").color(Color32::RED);
+                                    let text = RichText::new("🚩")
+                                        .color(Color32::RED);
                                     let button =
-                                        egui::Button::new(text).min_size(Vec2::new(25.0, 25.0));
+                                        egui::Button::new(text)
+                                        .min_size(Vec2::new(cell_size, cell_size));
                                     let _unflag = ui.add(button);
                                 }
                             }
