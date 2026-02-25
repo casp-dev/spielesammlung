@@ -590,9 +590,7 @@ impl CoreGame for GoGame {
                         }
 
                         ui.add_space(4.0);
-                        if !self.multiplayer {
-                            ui.checkbox(&mut self.ai_enabled, "AI Gegner");
-                        }
+
 
                         ui.add_space(8.0);
 
@@ -720,6 +718,8 @@ impl MultiplayerGame for GoGame {
     }
 
     fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16> {
+        self.ai_enabled = true;
+        self.game_state = GoGameState::Playing;
         bot_level
     }
 
