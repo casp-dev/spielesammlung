@@ -93,12 +93,16 @@ pub trait MultiplayerGame: Game {
 
         let text_size  = 20.0;
 
+        let estimated_bot_slider_width = 210.0; // estimated width of the bot slider + text
+        let bot_slider_horizontal_offset = available_width - estimated_bot_slider_width;
+        let estimated_romm_key_text_height = 22.75; // used to move the bot slider to the top of the corner
+
         ui.horizontal(|ui| {
 
             ui.label("Schlüssel:");
             ui.add(
                 egui::TextEdit::singleline(self.get_room_key_text())
-                    .desired_width(150.0),
+                    .desired_width(150.0)
             );
             if ui.button("Beitreten").clicked() {
                 self.join_room();
@@ -108,13 +112,18 @@ pub trait MultiplayerGame: Game {
         let mut bot_level_val = None;
         if bot_level {
             ui.horizontal(|ui| {
-                bot_level_val = Some(self.bot_level_slider(ui));
+                ui.add_space(bot_slider_horizontal_offset);
+
+                ui.vertical( |ui|{
+                    ui.add_space(-estimated_romm_key_text_height);
+                    bot_level_val = Some(self.bot_level_slider(ui));
+                });
             });
         }
 
         let mut player_count_val = None;
         if player_count {
-            ui.horizontal(|ui| {
+            ui.vertical(|ui| {
                 player_count_val = Some(self.player_count_slider(ui));
             });
         }
@@ -131,15 +140,7 @@ pub trait MultiplayerGame: Game {
 
             ui.add_space(button_spacing);
 
-            let create_muliplayer_room_button = egui::Button::new(egui::RichText::new("Mehrspieler Raum erstellen").size(text_size))
-                .min_size(egui::vec2(button_width, button_height));
-            if ui.add(create_muliplayer_room_button).clicked() {
-                self.create_host_button_clicked();
-            }
-
-            ui.add_space(button_spacing);
-
-            let play_vs_bot_button = egui::Button::new(
+                        let play_vs_bot_button = egui::Button::new(
                 egui::RichText::new(
                     if let Some(level) = bot_level_val {
                         format!("Spiele gegen einen Bot (Level {})", level)
@@ -150,6 +151,14 @@ pub trait MultiplayerGame: Game {
             ).min_size(egui::vec2(button_width, button_height));
             if ui.add(play_vs_bot_button).clicked() {
                 self.bot_button_clicked(bot_level_val);
+            }
+
+            ui.add_space(button_spacing);
+
+            let create_muliplayer_room_button = egui::Button::new(egui::RichText::new("Mehrspieler Raum erstellen").size(text_size))
+                .min_size(egui::vec2(button_width, button_height));
+            if ui.add(create_muliplayer_room_button).clicked() {
+                self.create_host_button_clicked();
             }
         });
     }
