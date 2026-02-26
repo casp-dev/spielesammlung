@@ -36,6 +36,7 @@ pub struct GoGame {
     status_message: String,
     ai_stats_message: String,
     ai_enabled: bool,
+    show_markers: bool,
     // Multiplayer
     game_state: GoGameState,
     client: Option<WebSocket<MaybeTlsStream<TcpStream>>>,
@@ -47,10 +48,11 @@ pub struct GoGame {
 impl Default for GoGame {
     fn default() -> Self {
         Self {
-            game: Game::new(19), // Standard 19x19 brett
+            game: Game::new(19),
             status_message: "Spiel gestartet. Schwarz ist am Zug.".to_owned(),
             ai_stats_message: String::new(),
             ai_enabled: false,
+            show_markers: false,
             // Multiplayer
             game_state: GoGameState::Menu,
             client: None,
@@ -83,7 +85,6 @@ impl CoreGame for GoGame {
                 ui.label(format!("Room ID: {}", self.room_key));
                 ui.label("Warte auf Gegner...");
 
-                // Non-blocking: auf PlayerJoined msg warten
                 if self.client.is_some() {
                     ui.ctx().request_repaint();
 
@@ -112,12 +113,13 @@ impl CoreGame for GoGame {
                     self.game_state = GoGameState::Playing;
                 }
             }
+
             GoGameState::Playing => {
                 let available_size = ui.available_size();
                 let board_size = (available_size.y - 20.0).min(available_size.x - 200.0);
 
                 ui.horizontal(|ui| {
-                    // === Board (links) ===
+
                     let (response, painter) = ui.allocate_painter(
                         egui::Vec2::new(board_size, board_size),
                         egui::Sense::click(),
@@ -157,6 +159,53 @@ impl CoreGame for GoGame {
                             ],
                             stroke,
                         );
+                    }
+
+                    // koordinaten
+                    if self.show_markers {
+                        let label_color = egui::Color32::from_rgb(80, 60, 30);
+                        let font = egui::FontId::proportional(cell_size * 0.45);
+
+                        let col_labels: Vec<char> = "ABCDEFGHJKLMNOPQRST".chars().collect();
+                        for i in 0..grid_size {
+                            let x_pos = grid_rect.min.x + i as f32 * cell_size;
+                            //top
+                            if i < col_labels.len() {
+                                painter.text(
+                                    egui::pos2(x_pos, rect.min.y + padding * 0.5),
+                                    egui::Align2::CENTER_CENTER,
+                                    col_labels[i].to_string(),
+                                    font.clone(),
+                                    label_color,
+                                );
+                                //bottom
+                                painter.text(
+                                    egui::pos2(x_pos, rect.max.y - padding * 0.5),
+                                    egui::Align2::CENTER_CENTER,
+                                    col_labels[i].to_string(),
+                                    font.clone(),
+                                    label_color,
+                                );
+                            }
+                            //left
+                            let row_num = grid_size - i;
+                            let y_pos = grid_rect.min.y + i as f32 * cell_size;
+                            painter.text(
+                                egui::pos2(rect.min.x + padding * 0.5, y_pos),
+                                egui::Align2::CENTER_CENTER,
+                                row_num.to_string(),
+                                font.clone(),
+                                label_color,
+                            );
+                            //right
+                            painter.text(
+                                egui::pos2(rect.max.x - padding * 0.5, y_pos),
+                                egui::Align2::CENTER_CENTER,
+                                row_num.to_string(),
+                                font.clone(),
+                                label_color,
+                            );
+                        }
                     }
 
                     // hoshi punkte
@@ -590,7 +639,7 @@ impl CoreGame for GoGame {
                         }
 
                         ui.add_space(4.0);
-
+                        ui.checkbox(&mut self.show_markers, "Koordinaten");
 
                         ui.add_space(8.0);
 
