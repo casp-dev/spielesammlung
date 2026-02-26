@@ -1872,6 +1872,8 @@ dependencies = [
  "egui",
  "game_core",
  "rand 0.8.5",
+ "serde_json",
+ "tungstenite",
 ]
 
 [[package]]
