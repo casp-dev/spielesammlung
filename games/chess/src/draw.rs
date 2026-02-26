@@ -5,7 +5,29 @@ use crate::{
 
 pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
     let last_move = game.logs.last().unwrap().clone();
-    egui::Grid::new("chess_board")
+    
+    let board_width = 8.0 * 60.0;
+    let board_height = board_width;
+    
+    let available_width = ui.available_width();
+    let available_height = ui.available_height();
+
+    let left_offset = (available_width - board_width) / 2.0;
+    let top_offset = (available_height - board_height) / 2.0;
+
+    ui.horizontal(|ui| {
+
+        if left_offset > 0.0 {
+            ui.add_space(left_offset);
+        }
+
+        ui.vertical(|ui| {
+
+            if top_offset > 0.0 {
+                ui.add_space(top_offset);
+            }
+
+            egui::Grid::new("chess_board")
         .spacing(egui::vec2(0.0, 0.0))
         .show(ui, |ui| {
             for y in 0..8 {
@@ -98,6 +120,8 @@ pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
                 }
             }
         });
+        });
+    });
 }
 
 fn get_piece_char(meeple: Meeple) -> &'static str {
