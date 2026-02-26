@@ -1,6 +1,6 @@
 use std::{collections::HashMap, usize};
 
-use egui::{Color32, RichText, Ui};
+use egui::{Align, Color32, Layout, RichText, Ui};
 use game_core::{Game, MultiplayerGame};
 
 use serde_json::Value;
@@ -92,7 +92,7 @@ impl ChessGame {
             turn: turn_,
             pawn_mutate: false,
             engine: None,
-            possible_bot_level: 3,
+            possible_bot_level: 1,
             client: None,
             multiplayer: None,
             room_key: String::new(),
@@ -455,24 +455,59 @@ impl Game for ChessGame {
 
             if ui.button("Spiel starten").clicked() {}
         } else if self.state != "initial" {
+            let reset_btn = egui::Button::new("Reset Game");
             if self.state == "Tie because of triple repetition"
                 || self.state == "White has won"
                 || self.state == "Black has won"
             {
-                ui.heading(RichText::new(&self.state).strong().color(Color32::RED));
+                ui.horizontal(|ui| {
+                    ui.heading(RichText::new(&self.state).strong().color(Color32::RED));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui.add(reset_btn).clicked() {
+                            let bot = self.engine.clone();
+                            *self = ChessGame::new();
+                            self.engine = bot;
+                            self.state = "0.0".to_string();
+                        }
+                    });
+                });
+            } else if self.state == "Play vs Bot"
+                || self.state == "Multiplayer as White"
+                || self.state == "Multiplayer as Black"
+                || self.state == "Play Local"
+            {
+                ui.horizontal(|ui| {
+                    ui.heading(RichText::new(&self.state).strong().color(Color32::GREEN));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui.add(reset_btn).clicked() {
+                            let bot = self.engine.clone();
+                            *self = ChessGame::new();
+                            self.engine = bot;
+                            self.state = "0.0".to_string();
+                        }
+                    });
+                });
             } else {
-                ui.heading(format!("score: {}", self.state));
+                ui.horizontal(|ui| {
+                    ui.heading(format!("Current Evaluation: {}", self.state));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui.add(reset_btn).clicked() {
+                            let bot = self.engine.clone();
+                            *self = ChessGame::new();
+                            self.engine = bot;
+                            self.state = "0.0".to_string();
+                        }
+                    });
+                });
             }
             if self.multiplayer.is_some() {
+                ui.label(format!(
+                    "You are playing as {:?}",
+                    self.multiplayer.unwrap()
+                ));
+                ui.label(format!("It is the turn of {:?}", self.turn));
                 self.wait_one_reply_game();
             } else {
-                let reset_btn = egui::Button::new("Reset Game");
-                if ui.add(reset_btn).clicked() {
-                    let bot = self.engine.clone();
-                    *self = ChessGame::new();
-                    self.engine = bot;
-                    self.state = "0.0".to_string();
-                }
             }
             draw_board(ui, self);
         } else {
@@ -537,7 +572,7 @@ impl MultiplayerGame for ChessGame {
 
     fn bot_level_slider(&mut self, ui: &mut Ui) -> u16 {
         ui.add(
-            egui::Slider::new(&mut self.possible_bot_level, 1..=7).text("What level for the bot?"),
+            egui::Slider::new(&mut self.possible_bot_level, 1..=4).text("What level for the bot?"),
         );
         self.possible_bot_level
     }
