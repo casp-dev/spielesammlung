@@ -551,7 +551,7 @@ impl Game for ChessGame {
             }
             draw_board(ui, self);
         } else {
-            self.multipalyer_ui(ui, true, false);
+            self.gamemode_selection_ui(ui, true, false);
         }
     }
 }

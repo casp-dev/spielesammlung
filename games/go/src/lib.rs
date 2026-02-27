@@ -75,8 +75,7 @@ impl CoreGame for GoGame {
     fn ui(&mut self, ui: &mut egui::Ui) {
         match self.game_state {
             GoGameState::Menu => {
-                ui.heading("Rust Go");
-                self.multipalyer_ui(ui, false, false);
+                self.gamemode_selection_ui(ui, false, false);
             }
             GoGameState::WaitingForOpponent => {
                 ui.heading("Rust Go - Multiplayer");
@@ -238,29 +237,37 @@ impl CoreGame for GoGame {
                         }
                     }
 
-                    // Hover
-                    if let Some(pos) = response.hover_pos() {
-                        if !self.game.game_over && rect.contains(pos) {
-                            let relative_pos = pos - grid_rect.min;
-                            let x_f = relative_pos.x / cell_size;
-                            let y_f = relative_pos.y / cell_size;
+                    // Hover (im Multiplayer nur für eigene Steine)
+                    let show_hover = if self.multiplayer {
+                        self.my_color == Some(self.game.current_turn)
+                    } else {
+                        true
+                    };
 
-                            let x = x_f.round() as i32;
-                            let y = y_f.round() as i32;
+                    if show_hover {
+                        if let Some(pos) = response.hover_pos() {
+                            if !self.game.game_over && rect.contains(pos) {
+                                let relative_pos = pos - grid_rect.min;
+                                let x_f = relative_pos.x / cell_size;
+                                let y_f = relative_pos.y / cell_size;
 
-                            if x >= 0
-                                && x < grid_size as i32
-                                && y >= 0
-                                && y < grid_size as i32
-                            {
-                                if self.game.board.get(x as usize, y as usize).is_none() {
-                                    let center = grid_rect.min
-                                        + egui::vec2(x as f32 * cell_size, y as f32 * cell_size);
-                                    let color = match self.game.current_turn {
-                                        Stone::Black => egui::Color32::from_black_alpha(100),
-                                        Stone::White => egui::Color32::from_white_alpha(100),
-                                    };
-                                    painter.circle_filled(center, cell_size * 0.4, color);
+                                let x = x_f.round() as i32;
+                                let y = y_f.round() as i32;
+
+                                if x >= 0
+                                    && x < grid_size as i32
+                                    && y >= 0
+                                    && y < grid_size as i32
+                                {
+                                    if self.game.board.get(x as usize, y as usize).is_none() {
+                                        let center = grid_rect.min
+                                            + egui::vec2(x as f32 * cell_size, y as f32 * cell_size);
+                                        let color = match self.game.current_turn {
+                                            Stone::Black => egui::Color32::from_black_alpha(100),
+                                            Stone::White => egui::Color32::from_white_alpha(100),
+                                        };
+                                        painter.circle_filled(center, cell_size * 0.4, color);
+                                    }
                                 }
                             }
                         }
@@ -383,6 +390,53 @@ impl CoreGame for GoGame {
                     ui.vertical(|ui| {
                         ui.set_min_width(170.0);
 
+                        // Spieler-Anzeige (Multiplayer)
+                        if self.multiplayer {
+                            if let Some(my_color) = self.my_color {
+                                ui.group(|ui| {
+                                    ui.horizontal(|ui| {
+                                        let color_text = match my_color {
+                                            Stone::Black => "Schwarz",
+                                            Stone::White => "Weiß",
+                                        };
+                                        let (stone_rect, _) = ui.allocate_exact_size(
+                                            egui::vec2(14.0, 14.0),
+                                            egui::Sense::hover(),
+                                        );
+                                        let c = stone_rect.center();
+                                        match my_color {
+                                            Stone::Black => {
+                                                ui.painter()
+                                                    .circle_filled(c, 7.0, egui::Color32::BLACK);
+                                                ui.painter().circle_stroke(
+                                                    c,
+                                                    7.0,
+                                                    egui::Stroke::new(
+                                                        1.0,
+                                                        egui::Color32::from_gray(80),
+                                                    ),
+                                                );
+                                            }
+                                            Stone::White => {
+                                                ui.painter()
+                                                    .circle_filled(c, 7.0, egui::Color32::WHITE);
+                                                ui.painter().circle_stroke(
+                                                    c,
+                                                    7.0,
+                                                    egui::Stroke::new(1.0, egui::Color32::GRAY),
+                                                );
+                                            }
+                                        }
+                                        ui.label(
+                                            egui::RichText::new(format!("Du bist {}", color_text))
+                                                .strong(),
+                                        );
+                                    });
+                                });
+                                ui.add_space(4.0);
+                            }
+                        }
+
                         // Zug-Anzeige
                         ui.group(|ui| {
                             ui.horizontal(|ui| {
@@ -418,8 +472,15 @@ impl CoreGame for GoGame {
                                         );
                                     }
                                 }
+                                let label_text = if self.multiplayer && self.my_color == Some(self.game.current_turn) {
+                                    "Du bist dran!".to_owned()
+                                } else if self.multiplayer {
+                                    format!("{} am Zug (Gegner)", turn_text)
+                                } else {
+                                    format!("{} am Zug", turn_text)
+                                };
                                 ui.label(
-                                    egui::RichText::new(format!("{} am Zug", turn_text))
+                                    egui::RichText::new(label_text)
                                         .strong(),
                                 );
                             });
@@ -475,11 +536,26 @@ impl CoreGame for GoGame {
                         // Buttons
                         let btn_size = egui::vec2(170.0, 28.0);
 
-                        if ui
-                            .add_sized(btn_size, egui::Button::new("Passen"))
-                            .clicked()
-                        {
+                        let pass_allowed = if self.multiplayer {
+                            self.my_color == Some(self.game.current_turn)
+                        } else {
+                            true
+                        };
+
+                        let pass_button = ui.add_sized(
+                            btn_size,
+                            egui::Button::new("Passen"),
+                        );
+
+                        if pass_button.clicked() && pass_allowed && !self.game.game_over {
                             self.game.pass();
+
+                            // Pass an Gegner senden
+                            if self.multiplayer {
+                                let pass_msg = r#"{ "type": "GameMove", "data": { "pass": true } }"#;
+                                let _ = self.send(pass_msg);
+                            }
+
                             if self.game.game_over {
                                 let (b_score, w_score) = self.game.calculate_score();
                                 self.status_message = format!(
@@ -504,12 +580,16 @@ impl CoreGame for GoGame {
                             self.status_message =
                                 "Spiel neugestartet. Schwarz ist am Zug.".to_owned();
                             self.ai_stats_message.clear();
+
+                            // Neustart an Gegner senden
+                            if self.multiplayer {
+                                let restart_msg = r#"{ "type": "GameMove", "data": { "restart": true } }"#;
+                                let _ = self.send(restart_msg);
+                            }
                         }
 
                         ui.add_space(4.0);
-                        if !self.multiplayer {
-                            ui.checkbox(&mut self.ai_enabled, "AI Gegner");
-                        }
+
 
                         ui.add_space(8.0);
 
@@ -563,18 +643,54 @@ impl eframe::App for GoGame {
 
 impl MultiplayerGame for GoGame {
     fn on_text(&mut self, msg: String) {
-        // Parse GameMove von server
         if let Ok(v) = serde_json::from_str::<Value>(&msg) {
-            if v.get("type").and_then(|t| t.as_str()) == Some("GameMove") {
-                if let Some(data) = v.get("data") {
-                    if let (Some(x), Some(y)) = (
-                        data.get("x").and_then(|v| v.as_u64()),
-                        data.get("y").and_then(|v| v.as_u64()),
-                    ) {
-                        let _ = self.game.place_stone(x as usize, y as usize);
-                        self.status_message = format!("{:?} ist am Zug.", self.game.current_turn);
+            let msg_type = v.get("type").and_then(|t| t.as_str());
+
+            match msg_type {
+                Some("GameMove") => {
+                    if let Some(data) = v.get("data") {
+                        // Pass-Zug
+                        if data.get("pass").and_then(|p| p.as_bool()) == Some(true) {
+                            self.game.pass();
+                            if self.game.game_over {
+                                let (b_score, w_score) = self.game.calculate_score();
+                                self.status_message = format!(
+                                    "Spiel vorbei! Schwarz {:.1} — Weiß {:.1}",
+                                    b_score, w_score
+                                );
+                            } else {
+                                self.status_message = format!(
+                                    "Gegner hat gepasst. {:?} ist am Zug.",
+                                    self.game.current_turn
+                                );
+                            }
+                        } else if data.get("restart").and_then(|r| r.as_bool()) == Some(true) {
+                            self.game = Game::new(19);
+                            self.status_message =
+                                "Gegner hat neugestartet. Schwarz ist am Zug.".to_owned();
+                            self.ai_stats_message.clear();
+                        }
+                        // Normaler Zug
+                        else if let (Some(x), Some(y)) = (
+                            data.get("x").and_then(|v| v.as_u64()),
+                            data.get("y").and_then(|v| v.as_u64()),
+                        ) {
+                            let _ = self.game.place_stone(x as usize, y as usize);
+                            self.status_message =
+                                format!("{:?} ist am Zug.", self.game.current_turn);
+                        }
                     }
                 }
+                Some("PlayerLeft") => {
+                    self.multiplayer = false;
+                    self.my_color = None;
+                    self.client = None;
+                    self.game = Game::new(19);
+                    self.game_state = GoGameState::Menu;
+                    self.status_message = "Gegner hat das Spiel verlassen.".to_owned();
+                    self.ai_stats_message.clear();
+                }
+                _ => {}
             }
         }
     }
@@ -601,6 +717,8 @@ impl MultiplayerGame for GoGame {
     }
 
     fn bot_button_clicked(&mut self, bot_level: Option<u16>) -> Option<u16> {
+        self.ai_enabled = true;
+        self.game_state = GoGameState::Playing;
         bot_level
     }
 
