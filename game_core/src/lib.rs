@@ -70,10 +70,10 @@ pub trait MultiplayerGame: Game {
                 self.on_text(txt);
             }
             Ok(_) => {
-                eprintln!("Received non-text message");
+                //eprintln!("Received non-text message");
             }
-            Err(e) => {
-                eprintln!("WebSocket error: {}", e);
+            Err(_) => {
+                //eprintln!("WebSocket error: {}", e);
             }
         }
     }

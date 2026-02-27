@@ -37,7 +37,7 @@ pub struct ChessGame {
 }
 
 impl ChessGame {
-    ///this functions creates a new Chessboard with the state "initial" and no Engine
+    ///this functions creates a new Chessboard with the state "initial" and no Engine and no multiplayer
     pub fn new() -> Self {
         let state_ = "initial".to_string();
         let chess_board: [[Option<Meeple>; 8]; 8] = Self::create_new_board();
@@ -230,6 +230,28 @@ impl ChessGame {
             };
         }
         self.pawn_mutate = false;
+        if self.multiplayer.is_some() && self.multiplayer.unwrap() != self.turn {
+            let add_value:usize = match mutate_into {
+                Type::Queen => 42,
+                Type::Rook => 84,
+                Type::Bishop => 126,
+                Type::Knight => 168,
+                _ => panic!("This should not happen"),
+            };
+            let x = format!(
+                "[{},{}]",
+                self.logs.last().unwrap().0 .0 + add_value,
+                self.logs.last().unwrap().0 .1
+            );
+            let y = format!(
+                "[{},{}]",
+                self.logs.last().unwrap().1 .0,
+                self.logs.last().unwrap().1 .1
+            );
+            let move_msg =
+                format!(r#"{{ "type": "GameMove", "data": {{ "from" : {x}, "to": {y} }} }}"#,);
+            self.send(&move_msg).unwrap();
+        }
         if !self.engine.is_none() {
             self.move_engine();
         }
@@ -238,6 +260,9 @@ impl ChessGame {
     fn move_multiplayer(&mut self) {
         if let Some(multiplayer_color) = self.multiplayer {
             if multiplayer_color != self.turn {
+                if self.pawn_mutate {
+                    return;
+                }
                 let x = format!(
                     "[{},{}]",
                     self.logs.last().unwrap().0 .0,
@@ -454,7 +479,7 @@ impl Game for ChessGame {
             ui.label(format!("Room ID: {}", self.room_key));
             ui.label("Warte auf Gegner...");
 
-            // Non-blocking: auf PlayerJoined msg warten
+            //auf msg warten
             if self.client.is_some() {
                 ui.ctx().request_repaint();
 
@@ -541,7 +566,7 @@ impl MultiplayerGame for ChessGame {
                     let from = &v["data"]["from"];
                     let to = &v["data"]["to"];
 
-                    let x1 = from[0].as_u64().unwrap() as usize;
+                    let mut x1 = from[0].as_u64().unwrap() as usize;
                     let y1 = from[1].as_u64().unwrap() as usize;
 
                     let x2 = to[0].as_u64().unwrap() as usize;
@@ -550,8 +575,26 @@ impl MultiplayerGame for ChessGame {
                     if self.turn == self.multiplayer.unwrap() {
                         return;
                     }
-                    self.clicked_meeple = (x1, y1);
-                    self.move_meeple((x2, y2));
+
+                    if x1 >= 42 {
+                        println!("pawn mutate message received");
+                        //pawn mutate
+                        let new_typ = x1 - x1 % 42;
+                        x1 = x1 % 42;
+                        let mutate_typ = match new_typ {
+                            42 => Type::Queen,
+                            84 => Type::Rook,
+                            126 => Type::Bishop,
+                            168 => Type::Knight,
+                            _ => panic!("This should not happen"),
+                        };
+                        self.clicked_meeple = (x1, y1);
+                        self.move_meeple((x2, y2));
+                        self.mutate_pawn(mutate_typ);
+                    } else {
+                        self.clicked_meeple = (x1, y1);
+                        self.move_meeple((x2, y2));
+                    }
                 } else if map.contains_key("restart") && map["restart"].as_bool().unwrap() {
                     self.game_board = Self::create_new_board();
                     self.logs = vec![((42, 42), (42, 42))];
