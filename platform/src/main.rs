@@ -166,12 +166,12 @@ fn main() -> eframe::Result<()> {
     let icon_data = include_bytes!("images/app_icon.png");
     let icon_image = image::load_from_memory(icon_data)
         .expect("Failed to load app icon")
-        .to_rgba8(); // Konvertiert das Bild in das RGBA8-Format (Rot, Grün, Blau, Alpha/Transparenz mit je 8 Bit pro Kanal), da egui dieses Format für Icons erwartet.
+        .to_rgba8();
     let icon_width = icon_image.width();
     let icon_height = icon_image.height();
     
     let icon = egui::IconData {
-        rgba: icon_image.into_raw(), // Extrahiert die rohen Pixeldaten (als flaches Vec<u8>) aus dem Bild, um sie an egui zu übergeben.
+        rgba: icon_image.into_raw(),
         width: icon_width,
         height: icon_height,
     };
