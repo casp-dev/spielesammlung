@@ -86,15 +86,9 @@ impl KniffelGame {
         ui.separator();
 
         if self.players == 1 {
-            ui.add(
-                egui::Slider::new(&mut self.bots, 1..=3)
-                    .text("Anzahl Computergegner"),
-            );
+            ui.add(egui::Slider::new(&mut self.bots, 1..=3).text("Anzahl Computergegner"));
         } else {
-            ui.add(
-                egui::Slider::new(&mut self.bots, 0..=3)
-                    .text("Anzahl Computergegner"),
-            );
+            ui.add(egui::Slider::new(&mut self.bots, 0..=3).text("Anzahl Computergegner"));
         }
 
         ui.separator();
@@ -116,10 +110,10 @@ impl KniffelGame {
         ui.label("Warte auf Gegner...");
 
         // Non-blocking: auf PlayerJoined msg warten
-        if self.client.is_some() {
+        if let Some(client) = &mut self.client {
             ui.ctx().request_repaint();
 
-            let received = match self.client.as_mut().unwrap().read() {
+            let received = match client.read() {
                 Ok(tungstenite::Message::Text(txt)) => Some(txt),
                 Err(tungstenite::Error::Io(ref e))
                     if e.kind() == std::io::ErrorKind::WouldBlock =>
@@ -254,7 +248,7 @@ impl KniffelGame {
 
                 if can_throw {
                     throw_dice(&mut self.game);
-                    
+
                     // Send dice throw to opponent
                     if self.multiplayer.is_some() {
                         self.send_dice_throw();
@@ -330,14 +324,14 @@ impl KniffelGame {
 
             let is_current_player = player_index == self.game.current_player_index;
             let is_filled = current_value.is_some();
-            
+
             // In multiplayer mode, only allow interaction if it's the local player's turn
             let is_local_player_turn = if let Some(local_player_index) = self.multiplayer {
                 local_player_index == player_index && is_current_player
             } else {
                 is_current_player
             };
-            
+
             let category_label = if is_filled {
                 format!("{} Pkt", current_value.unwrap())
             } else {
@@ -345,7 +339,9 @@ impl KniffelGame {
             };
 
             let response = ui.add_enabled(
-                is_local_player_turn && !is_filled && (self.game.current_player.number_of_throws > 0),
+                is_local_player_turn
+                    && !is_filled
+                    && (self.game.current_player.number_of_throws > 0),
                 egui::Button::new(category_label),
             ); //fehlt: dass Würfel gewürfelt werden, ansonsten blocked bis 1. Wurf FIX
 
@@ -419,7 +415,7 @@ impl KniffelGame {
 
                 if can_lock {
                     self.game = change_blocked_status_dice(&mut self.game, dice_index).clone();
-                    
+
                     // Send dice lock status to opponent
                     if self.multiplayer.is_some() {
                         self.send_dice_lock(dice_index);
@@ -499,20 +495,20 @@ impl MultiplayerGame for KniffelGame {
                     let cat = category as usize;
                     if let Some(points) = v["data"]["points"].as_u64() {
                         let pts = points as u8;
-                        
+
                         self.game = add_dice_point_table(&mut self.game, cat).clone();
-                        
+
                         let player_index = self.game.current_player_index;
                         if let Some(row) = self.player_buttons.get_mut(player_index) {
                             if let Some(slot) = row.get_mut(cat) {
                                 *slot = Some(pts as u32);
                             }
                         }
-                        
+
                         if let Some(player) = self.game.all_players.get_mut(player_index) {
                             player.point_table.points_thrown[cat] = Some(pts);
                         }
-                        
+
                         next_player(&mut self.game);
                     }
                 }
@@ -528,7 +524,7 @@ impl MultiplayerGame for KniffelGame {
     }
 
     fn bot_button_clicked(&mut self, _bot_level: Option<u16>) -> Option<u16> {
-        // Switch to local setup screen  
+        // Switch to local setup screen
         self.screen = Screen::LocalSetup;
         None
     }
@@ -637,9 +633,7 @@ impl KniffelGame {
             Ok(tungstenite::Message::Text(txt)) => {
                 self.on_text(txt);
             }
-            Err(tungstenite::Error::Io(ref e))
-                if e.kind() == std::io::ErrorKind::WouldBlock =>
-            {
+            Err(tungstenite::Error::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 // No message available, this is fine
             }
             Err(e) => {
@@ -654,7 +648,10 @@ impl KniffelGame {
             return;
         }
 
-        let dice_values: Vec<u8> = self.game.current_player.dice_throw
+        let dice_values: Vec<u8> = self
+            .game
+            .current_player
+            .dice_throw
             .iter()
             .map(|d| d.eyes)
             .collect();
@@ -696,28 +693,6 @@ impl KniffelGame {
 
         if let Err(e) = self.send(&msg) {
             eprintln!("Failed to send category selection: {}", e);
-        }
-    }
-
-    fn join_room(&mut self) {
-        let room_key = self.room_key.clone();
-        if room_key.is_empty() {
-            self.room_key = String::from("Enter room ID");
-            return;
-        }
-        let url = format!("ws://localhost:9000/{}", room_key);
-        let header_value = None;
-        if self.connect(url, header_value).is_ok() {
-            let join_msg = format!(r#"{{ "type": "JoinRoom", "room_id": "{}" }}"#, room_key);
-            if self.send(&join_msg).is_err() {
-                self.room_key = String::from("Communication error");
-                return;
-            }
-            let reply = self.wait_one_reply();
-            println!("Joined room: {}", reply);
-            self.start_multiplayer_game();
-        } else {
-            self.room_key = String::from("Connection failed");
         }
     }
 }
