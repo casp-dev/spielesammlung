@@ -47,11 +47,13 @@ pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
                                 egui::Color32::from_rgb(181, 136, 99)
                             };
 
-                            //highlight color
+                            //last move
                             let mut button_color = bg_color;
                             if (x, y) == last_move.0 || (x, y) == last_move.1 {
                                 button_color = egui::Color32::from_rgb(246, 246, 105);
                             }
+
+                            //highlight color
                             if let Some(possible_moves) = &game.shown_moves {
                                 if possible_moves.contains(&(x, y)) {
                                     button_color = egui::Color32::from_rgb(100, 255, 100);
@@ -88,6 +90,7 @@ pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
             if !game.pawn_mutate {
                 return;
             }
+            //pawn mutate
             egui::Grid::new("mutate pawn")
                 .spacing(egui::vec2(0.0, 0.0))
                 .show(ui, |ui| {

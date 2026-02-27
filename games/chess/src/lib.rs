@@ -40,9 +40,32 @@ impl ChessGame {
     ///this functions creates a new Chessboard with the state "initial" and no Engine
     pub fn new() -> Self {
         let state_ = "initial".to_string();
-        let mut chess_board: [[Option<Meeple>; 8]; 8] = Default::default();
+        let chess_board: [[Option<Meeple>; 8]; 8] = Self::create_new_board();
         let logs_ = vec![((42, 42), (42, 42))];
         let turn_ = Color::White;
+        let possible_moves_ = create_basic_possible_moves();
+        Self {
+            state: state_,
+            game_board: chess_board,
+            possible_moves: possible_moves_,
+            shown_moves: None,
+            logs: logs_,
+            casteling_rights: ((false, false), (false, false)),
+            en_passant_pos: Default::default(),
+            repeat: HashMap::new(),
+            clicked_meeple: (42, 42),
+            turn: turn_,
+            pawn_mutate: false,
+            engine: None,
+            possible_bot_level: 1,
+            client: None,
+            multiplayer: None,
+            room_key: String::new(),
+        }
+    }
+
+    fn create_new_board() -> [[Option<Meeple>; 8]; 8] {
+        let mut chess_board: [[Option<Meeple>; 8]; 8] = Default::default();
         for x in 0..=7 {
             for y in 0..=7 {
                 match y.clone() {
@@ -78,25 +101,7 @@ impl ChessGame {
                 }
             }
         }
-        let possible_moves_ = create_basic_possible_moves();
-        Self {
-            state: state_,
-            game_board: chess_board,
-            possible_moves: possible_moves_,
-            shown_moves: None,
-            logs: logs_,
-            casteling_rights: ((false, false), (false, false)),
-            en_passant_pos: Default::default(),
-            repeat: HashMap::new(),
-            clicked_meeple: (42, 42),
-            turn: turn_,
-            pawn_mutate: false,
-            engine: None,
-            possible_bot_level: 1,
-            client: None,
-            multiplayer: None,
-            room_key: String::new(),
-        }
+        chess_board
     }
 
     ///this function creates one meeple for
@@ -368,6 +373,25 @@ impl ChessGame {
             }
         }
     }
+
+    fn reset(&mut self) {
+        if self.multiplayer.is_some() {
+            let move_msg = format!(r#"{{ "type": "GameMove", "data": {{ "restart": true }} }}"#);
+            self.send(&move_msg).unwrap();
+            println!("send reset message");
+        }
+        self.game_board = Self::create_new_board();
+        self.logs = vec![((42, 42), (42, 42))];
+        self.turn = Color::White;
+        self.shown_moves = None;
+        self.clicked_meeple = (42, 42);
+        self.possible_moves = create_basic_possible_moves();
+        self.repeat = HashMap::new();
+        self.pawn_mutate = false;
+        self.en_passant_pos = None;
+        self.casteling_rights = ((false, false), (false, false));
+        self.state = String::from("0.0")
+    }
 }
 
 fn walk_and_replace(
@@ -464,10 +488,7 @@ impl Game for ChessGame {
                     ui.heading(RichText::new(&self.state).strong().color(Color32::RED));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if ui.add(reset_btn).clicked() {
-                            let bot = self.engine.clone();
-                            *self = ChessGame::new();
-                            self.engine = bot;
-                            self.state = "0.0".to_string();
+                            self.reset();
                         }
                     });
                 });
@@ -480,10 +501,7 @@ impl Game for ChessGame {
                     ui.heading(RichText::new(&self.state).strong().color(Color32::GREEN));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if ui.add(reset_btn).clicked() {
-                            let bot = self.engine.clone();
-                            *self = ChessGame::new();
-                            self.engine = bot;
-                            self.state = "0.0".to_string();
+                            self.reset();
                         }
                     });
                 });
@@ -492,10 +510,7 @@ impl Game for ChessGame {
                     ui.heading(format!("Current Evaluation: {}", self.state));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if ui.add(reset_btn).clicked() {
-                            let bot = self.engine.clone();
-                            *self = ChessGame::new();
-                            self.engine = bot;
-                            self.state = "0.0".to_string();
+                            self.reset();
                         }
                     });
                 });
@@ -518,24 +533,41 @@ impl Game for ChessGame {
 
 impl MultiplayerGame for ChessGame {
     fn on_text(&mut self, str: String) {
-        println!("Received: {}", str);
-
         let v: Value = serde_json::from_str(&str).unwrap();
 
-        let from = &v["data"]["from"];
-        let to = &v["data"]["to"];
+        match &v["data"] {
+            serde_json::Value::Object(map) => {
+                if map.contains_key("from") && map.contains_key("to") {
+                    let from = &v["data"]["from"];
+                    let to = &v["data"]["to"];
 
-        let x1 = from[0].as_u64().unwrap() as usize;
-        let y1 = from[1].as_u64().unwrap() as usize;
+                    let x1 = from[0].as_u64().unwrap() as usize;
+                    let y1 = from[1].as_u64().unwrap() as usize;
 
-        let x2 = to[0].as_u64().unwrap() as usize;
-        let y2 = to[1].as_u64().unwrap() as usize;
+                    let x2 = to[0].as_u64().unwrap() as usize;
+                    let y2 = to[1].as_u64().unwrap() as usize;
 
-        if self.turn == self.multiplayer.unwrap() {
-            return;
+                    if self.turn == self.multiplayer.unwrap() {
+                        return;
+                    }
+                    self.clicked_meeple = (x1, y1);
+                    self.move_meeple((x2, y2));
+                } else if map.contains_key("restart") && map["restart"].as_bool().unwrap() {
+                    self.game_board = Self::create_new_board();
+                    self.logs = vec![((42, 42), (42, 42))];
+                    self.turn = Color::White;
+                    self.shown_moves = None;
+                    self.clicked_meeple = (42, 42);
+                    self.possible_moves = create_basic_possible_moves();
+                    self.repeat = HashMap::new();
+                    self.pawn_mutate = false;
+                    self.en_passant_pos = None;
+                    self.casteling_rights = ((false, false), (false, false));
+                    self.state = format!("Multiplayer as {:?}", self.multiplayer.unwrap());
+                }
+            }
+            _ => println!("Invalid data"),
         }
-        self.clicked_meeple = (x1, y1);
-        self.move_meeple((x2, y2));
     }
 
     fn local_button_clicked(&mut self, player_counter: Option<u16>) -> Option<u16> {
