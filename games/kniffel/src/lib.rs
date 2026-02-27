@@ -13,7 +13,8 @@ use tungstenite::WebSocket;
 
 #[derive(PartialEq)]
 enum Screen {
-    Setup,
+    Menu,
+    LocalSetup,
     InGame,
     WaitingForOpponent,
 }
@@ -38,7 +39,7 @@ impl Default for KniffelGame {
 impl KniffelGame {
     pub fn new() -> Self {
         Self {
-            screen: Screen::Setup,
+            screen: Screen::Menu,
             players: 2,
             player_buttons: vec![vec![None; 13]; 2],
             bots: 0,
@@ -57,7 +58,8 @@ impl Game for KniffelGame {
 
     fn ui(&mut self, ui: &mut egui::Ui) {
         match self.screen {
-            Screen::Setup => self.ui_setup(ui),
+            Screen::Menu => self.ui_menu(ui),
+            Screen::LocalSetup => self.ui_local_setup(ui),
             Screen::InGame => self.ui_game(ui),
             Screen::WaitingForOpponent => self.ui_waiting(ui),
         }
@@ -65,7 +67,11 @@ impl Game for KniffelGame {
 }
 
 impl KniffelGame {
-    fn ui_setup(&mut self, ui: &mut egui::Ui) {
+    fn ui_menu(&mut self, ui: &mut egui::Ui) {
+        self.multiplayer_ui(ui, false, false);
+    }
+
+    fn ui_local_setup(&mut self, ui: &mut egui::Ui) {
         ui.heading("Neues Kniffelspiel erstellen");
         ui.separator();
 
@@ -81,12 +87,12 @@ impl KniffelGame {
 
         if self.players == 1 {
             ui.add(
-                egui::Slider::new(&mut self.bots, 1..=3) //TODO: wenn player 1 dann muss bot auf mindestens 1 locken (0 unerreichbar), bei 4 spielern automatisch auf 0
+                egui::Slider::new(&mut self.bots, 1..=3)
                     .text("Anzahl Computergegner"),
             );
         } else {
             ui.add(
-                egui::Slider::new(&mut self.bots, 0..=3) //TODO: wenn player 1 dann muss bot auf mindestens 1 locken (0 unerreichbar), bei 4 spielern automatisch auf 0
+                egui::Slider::new(&mut self.bots, 0..=3)
                     .text("Anzahl Computergegner"),
             );
         }
@@ -99,39 +105,9 @@ impl KniffelGame {
             self.screen = Screen::InGame;
         }
 
-        ui.separator();
-        ui.label("Oder:");
-        ui.separator();
-
-        // Show multiplayer options only
-        let available = ui.available_size();
-        let button_width = available.x * 0.5;
-        let button_height = available.y * 0.1;
-
-        let create_multiplayer_room = egui::Button::new("Multiplayer Room erstellen")
-            .min_size(egui::vec2(button_width, button_height));
-        
-        if ui.add(create_multiplayer_room).clicked() {
-            self.create_host_button_clicked();
+        if ui.button("Zurück").clicked() {
+            self.screen = Screen::Menu;
         }
-
-        ui.horizontal(|ui| {
-            ui.add(
-                egui::TextEdit::singleline(&mut self.room_key)
-                    .desired_width(button_width * 0.4)
-                    .hint_text("Raum ID"),
-            );
-
-            if ui
-                .add(
-                    egui::Button::new("Raum beitreten")
-                        .min_size(egui::vec2(button_width * 0.3, button_height)),
-                )
-                .clicked()
-            {
-                self.join_room();
-            }
-        });
     }
 
     fn ui_waiting(&mut self, ui: &mut egui::Ui) {
@@ -546,12 +522,14 @@ impl MultiplayerGame for KniffelGame {
     }
 
     fn local_button_clicked(&mut self, _player_counter: Option<u16>) -> Option<u16> {
-        // For kniffel, local multiplayer is handled in setup
+        // Switch to local setup screen
+        self.screen = Screen::LocalSetup;
         None
     }
 
     fn bot_button_clicked(&mut self, _bot_level: Option<u16>) -> Option<u16> {
-        // Bots are already integrated in the setup
+        // Switch to local setup screen  
+        self.screen = Screen::LocalSetup;
         None
     }
 
