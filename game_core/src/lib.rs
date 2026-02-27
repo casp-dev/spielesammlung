@@ -97,9 +97,7 @@ pub trait MultiplayerGame: Game {
         let bot_selection_horizontal_offset = available_width - estimated_bot_selection_width;
         let estimated_multiplayer_element_height = 25.0; // used to move the bot slider to the top of the corner
 
-        let play_local_button_color =  egui::Color32::from_rgb(40, 160, 80);
-        let play_vs_bot_button_color = egui::Color32::from_rgb(200, 120, 40);
-        let create_multiplayer_room_button_color = egui::Color32::from_rgb(180, 60, 60);
+        let gamemode_button_color =  egui::Color32::from_rgb(0, 131, 255);
 
         let is_darkmode_on = ui.visuals().dark_mode;
         let frame_color = if is_darkmode_on { egui::Color32::from_gray(50) } else { egui::Color32::from_gray(220) };
@@ -161,7 +159,7 @@ pub trait MultiplayerGame: Game {
             let play_local_button = egui::Button::new(egui::RichText::new("Lokal Spielen")
                 .size(button_text_size)
                 .color(egui::Color32::WHITE))
-                .fill(play_local_button_color)
+                .fill(gamemode_button_color)
                 .min_size(egui::vec2(button_width, button_height));
 
             if ui.add(play_local_button).clicked() {
@@ -181,9 +179,9 @@ pub trait MultiplayerGame: Game {
                 .size(button_text_size)
                 .color(egui::Color32::WHITE)
             )
-            .fill(play_vs_bot_button_color)
+            .fill(gamemode_button_color)
             .min_size(egui::vec2(button_width, button_height));
-
+            
             if ui.add(play_vs_bot_button).clicked() {
                 self.bot_button_clicked(bot_level_val);
             }
@@ -193,7 +191,7 @@ pub trait MultiplayerGame: Game {
             let create_multiplayer_room_button = egui::Button::new(egui::RichText::new("Mehrspieler Raum erstellen")
                 .size(button_text_size)
                 .color(egui::Color32::WHITE))
-                .fill(create_multiplayer_room_button_color)
+                .fill(gamemode_button_color)
                 .min_size(egui::vec2(button_width, button_height));
 
             if ui.add(create_multiplayer_room_button).clicked() {
