@@ -78,56 +78,124 @@ pub trait MultiplayerGame: Game {
         }
     }
 
-    fn multipalyer_ui(&mut self, ui: &mut Ui, bot_level: bool, player_count: bool) {
-        let available = ui.available_size();
+    fn gamemode_selection_ui(&mut self, ui: &mut Ui, bot_level: bool, player_count: bool) {
 
-        let button_width = available.x * 0.5;
-        let button_height = available.y * 0.1;
+        let available_width = ui.available_width();
+        let available_height = ui.available_height();
 
-        let play_local =
-            egui::Button::new("Play Local").min_size(egui::vec2(button_width, button_height));
-        let play_vs_bot =
-            egui::Button::new("Play vs Bot").min_size(egui::vec2(button_width, button_height));
-        let create_muliplayer_room = egui::Button::new("Create Multiplayer Room")
-            .min_size(egui::vec2(button_width, button_height));
-        if player_count {
-            let count = self.player_count_slider(ui);
-            if ui.add(play_local).clicked() {
-                self.local_button_clicked(Some(count));
-            }
-        } else {
-            if ui.add(play_local).clicked() {
-                self.local_button_clicked(None);
-            }
-        }
-        if bot_level {
-            let level = self.bot_level_slider(ui);
-            if ui.add(play_vs_bot).clicked() {
-                self.bot_button_clicked(Some(level));
-            }
-        } else {
-            if ui.add(play_vs_bot).clicked() {
-                self.bot_button_clicked(None);
-            }
-        }
+        let button_width = (available_width * 0.3).clamp(300.0, 400.0);
+        let button_height = (available_height * 0.08).clamp(50.0, 100.0);
+        let button_spacing = 10.0;
+        let buffer = 75.0;
+
+        let total_buttons_height = (button_height * 3.0) + (button_spacing * 2.0);
+        let center_offset = (ui.available_height() - total_buttons_height) / 2.0 - buffer;
+
+        let button_text_size  = 20.0;
+
+        let estimated_bot_selection_width = 210.0; // estimated width of the bot slider + text + textfield
+        let bot_selection_horizontal_offset = available_width - estimated_bot_selection_width;
+        let estimated_multiplayer_element_height = 25.0; // used to move the bot slider to the top of the corner
+
+        let gamemode_button_color =  egui::Color32::from_rgb(0, 131, 255);
+
+        let is_darkmode_on = ui.visuals().dark_mode;
+        let frame_color = if is_darkmode_on { egui::Color32::from_gray(50) } else { egui::Color32::from_gray(220) };
+
         ui.horizontal(|ui| {
-            if ui.add(create_muliplayer_room).clicked() {
-                self.create_host_button_clicked();
+
+            ui.label(egui::RichText::new("Schlüssel:")
+            .size(12.5));
+
+            egui::Frame::none()
+                .fill(frame_color)
+                .rounding(5.0)
+                .inner_margin(egui::vec2(8.0, 1.0))
+                .show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(self.get_room_key_text())
+                            .desired_width(150.0)
+                            .frame(false)
+                    );
+                });
+
+            let join_btn = egui::Button::new(egui::RichText::new("Beitreten"));
+
+            if ui.add(join_btn).clicked() {
+                self.join_room();
+            }
+        });
+
+        let mut bot_level_val = None;
+
+        if bot_level {
+
+            ui.horizontal(|ui| {
+
+                ui.add_space(bot_selection_horizontal_offset);
+
+                ui.vertical( |ui|{
+
+                    ui.add_space(-estimated_multiplayer_element_height);
+                    bot_level_val = Some(self.bot_level_slider(ui));
+                });
+            });
+        }
+
+        let mut player_count_val = None;
+
+        if player_count {
+            
+            ui.vertical(|ui| {
+
+                player_count_val = Some(self.player_count_slider(ui));
+            });
+        }
+
+        ui.vertical_centered(|ui| {
+
+            ui.add_space(center_offset);
+
+            let play_local_button = egui::Button::new(egui::RichText::new("Lokal Spielen")
+                .size(button_text_size)
+                .color(egui::Color32::WHITE))
+                .fill(gamemode_button_color)
+                .min_size(egui::vec2(button_width, button_height));
+
+            if ui.add(play_local_button).clicked() {
+                self.local_button_clicked(player_count_val);
             }
 
-            ui.add(
-                egui::TextEdit::singleline(self.get_room_key_text())
-                    .desired_width(button_width * 0.4),
-            );
+            ui.add_space(button_spacing);
 
-            if ui
-                .add(
-                    egui::Button::new("Join")
-                        .min_size(egui::vec2(button_width * 0.1, button_height)),
+            let play_vs_bot_button = egui::Button::new(
+                egui::RichText::new(
+                    if let Some(level) = bot_level_val {
+                        format!("Spiele gegen einen Bot (Level {})", level)
+                    } else {
+                        "Spiele gegen einen Bot".to_string()
+                    }
                 )
-                .clicked()
-            {
-                self.join_room();
+                .size(button_text_size)
+                .color(egui::Color32::WHITE)
+            )
+            .fill(gamemode_button_color)
+            .min_size(egui::vec2(button_width, button_height));
+            
+            if ui.add(play_vs_bot_button).clicked() {
+                self.bot_button_clicked(bot_level_val);
+            }
+
+            ui.add_space(button_spacing);
+
+            let create_multiplayer_room_button = egui::Button::new(egui::RichText::new("Mehrspieler Raum erstellen")
+                .size(button_text_size)
+                .color(egui::Color32::WHITE))
+                .fill(gamemode_button_color)
+                .min_size(egui::vec2(button_width, button_height));
+
+            if ui.add(create_multiplayer_room_button).clicked() {
+                self.create_host_button_clicked();
             }
         });
     }

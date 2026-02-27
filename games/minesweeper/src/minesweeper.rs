@@ -177,18 +177,18 @@ pub fn open(game: &mut Game, action_kind: &ActionKind) {
 pub fn flood_fill(game: &mut Game, y: &usize, x: &usize) {
     for dy in -1..=1 {
         for dx in -1..=1 {
-            if dx == 0 && dy == 0 {
+            if (dx == 0 && dy == 0) {
                 continue;
             }
 
             let nx = *x as isize + dx;
             let ny = *y as isize + dy;
 
-            if nx >= 0 && ny >= 0 {
+            if (nx >= 0 && ny >= 0) {
                 let nx = nx as usize;
                 let ny = ny as usize;
 
-                if ny < game.board.len() && nx < game.board[0].len() {
+                if (ny < game.board.len() && nx < game.board[0].len()) {
                     if (game.board[ny][nx].cell_state == CellState::Opened) {
                         continue;
                     }
@@ -239,18 +239,18 @@ pub fn adjacent_mines(game: &Game, y: &usize, x: &usize) -> u8 {
     let mut count = 0;
     for dy in -1..=1 {
         for dx in -1..=1 {
-            if dx == 0 && dy == 0 {
+            if (dx == 0 && dy == 0) {
                 continue;
             }
 
             let nx = *x as isize + dx;
             let ny = *y as isize + dy;
 
-            if nx >= 0 && ny >= 0 {
+            if (nx >= 0 && ny >= 0) {
                 let nx = nx as usize;
                 let ny = ny as usize;
 
-                if ny < game.board.len() && nx < game.board[0].len() {
+                if (ny < game.board.len() && nx < game.board[0].len()) {
                     if let CellContent::Mine = game.board[ny][nx].cell_content {
                         count += 1;
                     }
@@ -258,7 +258,7 @@ pub fn adjacent_mines(game: &Game, y: &usize, x: &usize) -> u8 {
             }
         }
     }
-    count
+    return count;
 }
 
 #[allow(unused_parens)]
