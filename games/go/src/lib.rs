@@ -69,6 +69,16 @@ impl GoGame {
     }
 }
 
+fn go_coord(x: usize, y: usize, board_size: usize) -> String {
+    let col = if x >= 8 {
+        (b'A' + x as u8 + 1) as char
+    } else {
+        (b'A' + x as u8) as char
+    };
+    let row = board_size - y;
+    format!("{}{}", col, row)
+}
+
 impl CoreGame for GoGame {
     fn name(&self) -> &str {
         "Go"
@@ -119,7 +129,7 @@ impl CoreGame for GoGame {
                 let board_size = (available_size.y - 20.0).min(available_size.x - 200.0);
 
                 ui.horizontal(|ui| {
-
+                    // === Board (links) ===
                     let (response, painter) = ui.allocate_painter(
                         egui::Vec2::new(board_size, board_size),
                         egui::Sense::click(),
@@ -371,17 +381,18 @@ impl CoreGame for GoGame {
                                                 match self.game.place_stone(x, y) {
                                                     Ok(_) => {
                                                         self.status_message = format!(
-                                                            "AI spielt ({}, {}). {:?} ist am Zug.",
-                                                            x, y, self.game.current_turn
+                                                            "Bot spielt {}.",
+                                                            go_coord(x, y, self.game.board.size)
                                                         );
+                                                        let bsize = self.game.board.size;
                                                         let top_moves_str: String = stats
                                                             .top_moves
                                                             .iter()
                                                             .take(3)
                                                             .map(|(m, v, s)| {
                                                                 format!(
-                                                                    "({},{}):{}/{:.2}",
-                                                                    m.0, m.1, v, s
+                                                                    "{}:{}/{:.2}",
+                                                                    go_coord(m.0, m.1, bsize), v, s
                                                                 )
                                                             })
                                                             .collect::<Vec<_>>()
@@ -436,7 +447,6 @@ impl CoreGame for GoGame {
 
                     ui.add_space(12.0);
 
-                    // === Info-Panel (rechts) ===
                     ui.vertical(|ui| {
                         ui.set_min_width(170.0);
 
@@ -643,7 +653,6 @@ impl CoreGame for GoGame {
 
                         ui.add_space(8.0);
 
-                        // Status
                         if !self.status_message.is_empty()
                             || !self.ai_stats_message.is_empty()
                         {
@@ -657,7 +666,6 @@ impl CoreGame for GoGame {
                             });
                         }
 
-                        // Spiel-Ende
                         if self.game.game_over {
                             ui.add_space(8.0);
                             let (b_score, w_score) = self.game.calculate_score();
@@ -678,8 +686,8 @@ impl CoreGame for GoGame {
                         }
                     });
                 });
-            } // Playing
-        } // match
+            }
+        }
     }
 }
 
@@ -773,7 +781,6 @@ impl MultiplayerGame for GoGame {
     }
 
     fn create_host_button_clicked(&mut self) {
-        // Verbindet und erstellt Raum
         if self
             .connect(String::from("ws://localhost:9000"), None)
             .is_err()
@@ -808,7 +815,6 @@ impl MultiplayerGame for GoGame {
         self.game = Game::new(19);
         self.status_message = "Schwarz ist am Zug.".to_owned();
 
-        // non-blocking für spiel
         if let Some(ref client) = self.client {
             if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
                 let _ = tcp.set_nonblocking(true);
@@ -831,7 +837,6 @@ impl MultiplayerGame for GoGame {
         self.game = Game::new(19);
         self.status_message = "Multiplayer gestartet. Schwarz ist am Zug.".to_owned();
 
-        // non-blocking für spiel
         if let Some(ref client) = self.client {
             if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
                 let _ = tcp.set_nonblocking(true);

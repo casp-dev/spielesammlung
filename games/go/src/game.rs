@@ -199,11 +199,6 @@ impl Game {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn get_valid_moves(&self) {
-        //todo
-    }
-
     pub fn get_empty_points(&self) -> Vec<(usize, usize)> {
         let mut points = Vec::new();
         for y in 0..self.board.size {
@@ -217,14 +212,60 @@ impl Game {
     }
 
     pub fn calculate_score(&self) -> (f32, f32) {
+        let size = self.board.size;
         let mut black_score = self.captured_black as f32;
-        let mut white_score = self.captured_white as f32;
+        let mut white_score = self.captured_white as f32 + 6.5; // Komi
 
         for stone in &self.board.grid {
             match stone {
                 Some(Stone::Black) => black_score += 1.0,
                 Some(Stone::White) => white_score += 1.0,
                 None => {}
+            }
+        }
+
+        // gebiet
+        let mut visited = vec![false; size * size];
+
+        for y in 0..size {
+            for x in 0..size {
+                let idx = y * size + x;
+                if visited[idx] || self.board.get(x, y).is_some() {
+                    continue;
+                }
+
+                // flood-fill
+                let mut region = Vec::new();
+                let mut stack = vec![(x, y)];
+                let mut borders_black = false;
+                let mut borders_white = false;
+
+                while let Some((cx, cy)) = stack.pop() {
+                    let ci = cy * size + cx;
+                    if visited[ci] {
+                        continue;
+                    }
+                    visited[ci] = true;
+
+                    match self.board.get(cx, cy) {
+                        None => {
+                            region.push((cx, cy));
+                            for (nx, ny) in self.board.get_neighbors(cx, cy) {
+                                if !visited[ny * size + nx] {
+                                    stack.push((nx, ny));
+                                }
+                            }
+                        }
+                        Some(Stone::Black) => borders_black = true,
+                        Some(Stone::White) => borders_white = true,
+                    }
+                }
+
+                if borders_black && !borders_white {
+                    black_score += region.len() as f32;
+                } else if borders_white && !borders_black {
+                    white_score += region.len() as f32;
+                }
             }
         }
 
