@@ -1,4 +1,6 @@
-use crate::minesweeper::{ActionKind, CellContent, CellState, Difficulty, Game as MSGame, Minesweeper};
+use crate::minesweeper::{
+    ActionKind, CellContent, CellState, Difficulty, Game as MSGame, Minesweeper,
+};
 
 use egui::{Color32, RichText, Ui, Vec2};
 use game_core::Game;
@@ -26,7 +28,8 @@ pub fn color_for_mines_nearby(i: u8) -> Color32 {
 }
 
 #[allow(unused_parens)]
-pub fn neighbors(x: usize, y: usize, width: usize, height: usize) -> Vec<(usize, usize)> { // Returns a list of all neighboring cells for a given position
+pub fn neighbors(x: usize, y: usize, width: usize, height: usize) -> Vec<(usize, usize)> {
+    // Returns a list of all neighboring cells for a given position
     let mut neighbor_coords = Vec::new();
 
     for dy in -1..=1 {
@@ -99,7 +102,6 @@ impl Game for MinesweeperGame {
     fn ui(&mut self, ui: &mut Ui) {
         match &mut self.state {
             GameState::ChoosingDifficulty => {
-
                 let available_width = ui.available_width();
                 let available_height = ui.available_height();
 
@@ -108,13 +110,13 @@ impl Game for MinesweeperGame {
                 let heading_height = 30.0;
                 let spacing = 10.0;
 
-                let total_content_height = (heading_height + spacing * 2.0) + (button_height * 4.0) + (spacing * 3.0);
+                let total_content_height =
+                    (heading_height + spacing * 2.0) + (button_height * 4.0) + (spacing * 3.0);
                 let vertical_spacing = ((available_height - total_content_height) / 2.25).max(20.0); // Center vertically with minimum 20 Pixels top spacing
 
                 ui.add_space(vertical_spacing);
-                
-                ui.vertical_centered(|ui| {
 
+                ui.vertical_centered(|ui| {
                     ui.heading("Wähle eine Schwierigkeit:");
 
                     ui.add_space(spacing * 2.0);
@@ -148,7 +150,6 @@ impl Game for MinesweeperGame {
             }
 
             GameState::Playing(game) => {
-
                 let mut latest_clicked_cell: Option<(usize, usize)> = None;
 
                 let height = game.board.len();
@@ -161,7 +162,6 @@ impl Game for MinesweeperGame {
                 let mut number_cell_pressed = false; // Track if any number cell is currently being pressed
 
                 ui.horizontal(|ui| {
-
                     if (ui.button("🔙 Zurück").clicked() == true) {
                         re_choose_difficulty = true;
                     }
@@ -174,14 +174,16 @@ impl Game for MinesweeperGame {
 
                 let available_width = ui.available_width();
                 let available_height = ui.available_height();
-                
+
                 let cell_size = 25.0;
 
                 let spacing_x = ui.spacing().item_spacing.x;
                 let spacing_y = ui.spacing().item_spacing.y;
 
-                let board_width = (width as f32 * cell_size) + ((width as f32 - 1.0).max(0.0) * spacing_x);
-                let board_height = (height as f32 * cell_size) + ((height as f32 - 1.0).max(0.0) * spacing_y);
+                let board_width =
+                    (width as f32 * cell_size) + ((width as f32 - 1.0).max(0.0) * spacing_x);
+                let board_height =
+                    (height as f32 * cell_size) + ((height as f32 - 1.0).max(0.0) * spacing_y);
 
                 let vertical_offset = if (board_height < available_height) {
                     (available_height - board_height) / 2.0
@@ -195,106 +197,104 @@ impl Game for MinesweeperGame {
                 };
 
                 ui.add_space(vertical_offset);
-                
+
                 for y in 0..height {
-
                     ui.horizontal(|ui| {
-
                         ui.add_space(horizontal_offset);
-                        
-                        for x in 0..width {
 
+                        for x in 0..width {
                             let is_highlighted = self.saved_highlights.contains(&(y, x));
 
-                                if (game.board[y][x].cell_state == CellState::Unopened) {
-                                    
-                                    let text = if (DEBUG_SHOW_MINES == true && game.board[y][x].cell_content == CellContent::Mine) {
-                                        "💣"
-                                    } else {
-                                        ""
-                                    };
+                            if (game.board[y][x].cell_state == CellState::Unopened) {
+                                let text = if (DEBUG_SHOW_MINES == true
+                                    && game.board[y][x].cell_content == CellContent::Mine)
+                                {
+                                    "💣"
+                                } else {
+                                    ""
+                                };
 
-                                    let button = if (is_highlighted == true) {
-                                        egui::Button::new(text)
-                                            .min_size(Vec2::new(cell_size, cell_size))
-                                            .fill(Color32::GRAY)
-                                    } else {
-                                        egui::Button::new(text)
+                                let button = if (is_highlighted == true) {
+                                    egui::Button::new(text)
                                         .min_size(Vec2::new(cell_size, cell_size))
-                                    };
-
-                                    let click_or_flag = ui.add(button);
-                                    
-                                    if click_or_flag.clicked() {
-                                        latest_clicked_cell = Some((y ,x)); // Store as (y, x) to match board indexing [y][x] and popup comparison
-                                        let _ = MSGame::apply_action(game, ActionKind::Open(x, y));
-
-                                    }
-                                    if click_or_flag.secondary_clicked() {
-                                        let _ = MSGame::apply_action(game, ActionKind::Flag(x, y));
-                                    }
-                                }
-
-                                if (game.board[y][x].cell_state == CellState::Opened) {
-                                    match game.board[y][x].cell_content {
-                                        CellContent::Blank => {
-                                            let fill_color = Color32::DARK_GRAY;
-                                            let button = egui::Button::new("")
-                                                .fill(fill_color)
-                                                .min_size(Vec2::new(cell_size, cell_size));
-                                            ui.add(button);
-                                        }
-                                        CellContent::Mine => {
-                                            let fill_color = Color32::BLACK;
-                                            let text = RichText::new("💣").color(Color32::WHITE);
-                                            let button = egui::Button::new(text)
-                                                .fill(fill_color)
-                                                .min_size(Vec2::new(cell_size, cell_size));
-                                            ui.add(button);
-                                        }
-                                        CellContent::Number(i) => {
-                                            let text = RichText::new(i.to_string())
-                                                .color(Color32::WHITE)
-                                                .size(20.0);
-                                            let button = egui::Button::new(text)
-                                                .fill(color_for_mines_nearby(i))
-                                                .min_size(Vec2::new(cell_size, cell_size));
-
-                                            let show_neighbors = ui.add(button);
-
-                                            if (show_neighbors.is_pointer_button_down_on() == true) {
-                                                neighbors_to_highlight = Some(neighbors(x, y, width, height));
-                                                number_cell_pressed = true;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                if (game.board[y][x].cell_state == CellState::Flagged) {
-                                    let text = RichText::new("🚩")
-                                        .color(Color32::RED);
-                                    let button = if (is_highlighted == true) {
-                                        egui::Button::new(text)
-                                            .min_size(Vec2::new(cell_size, cell_size))
-                                            .fill(Color32::GRAY)
-                                    } else {
-                                        egui::Button::new(text)
+                                        .fill(Color32::GRAY)
+                                } else {
+                                    egui::Button::new(text)
                                         .min_size(Vec2::new(cell_size, cell_size))
-                                    };
+                                };
 
-                                    let unflag = ui.add(button);
+                                let click_or_flag = ui.add(button);
 
-                                    if unflag.secondary_clicked() {
-                                        let _ = MSGame::apply_action(game, ActionKind::Flag(x, y));
+                                if click_or_flag.clicked() {
+                                    latest_clicked_cell = Some((y, x)); // Store as (y, x) to match board indexing [y][x] and popup comparison
+                                    let _ = MSGame::apply_action(game, ActionKind::Open(x, y));
+                                }
+                                if click_or_flag.secondary_clicked() {
+                                    let _ = MSGame::apply_action(game, ActionKind::Flag(x, y));
+                                }
+                            }
+
+                            if (game.board[y][x].cell_state == CellState::Opened) {
+                                match game.board[y][x].cell_content {
+                                    CellContent::Blank => {
+                                        let fill_color = Color32::DARK_GRAY;
+                                        let button = egui::Button::new("")
+                                            .fill(fill_color)
+                                            .min_size(Vec2::new(cell_size, cell_size));
+                                        ui.add(button);
+                                    }
+                                    CellContent::Mine => {
+                                        let fill_color = Color32::BLACK;
+                                        let text = RichText::new("💣").color(Color32::WHITE);
+                                        let button = egui::Button::new(text)
+                                            .fill(fill_color)
+                                            .min_size(Vec2::new(cell_size, cell_size));
+                                        ui.add(button);
+                                    }
+                                    CellContent::Number(i) => {
+                                        let text = RichText::new(i.to_string())
+                                            .color(Color32::WHITE)
+                                            .size(20.0);
+                                        let button = egui::Button::new(text)
+                                            .fill(color_for_mines_nearby(i))
+                                            .min_size(Vec2::new(cell_size, cell_size));
+
+                                        let show_neighbors = ui.add(button);
+
+                                        if (show_neighbors.is_pointer_button_down_on() == true) {
+                                            neighbors_to_highlight =
+                                                Some(neighbors(x, y, width, height));
+                                            number_cell_pressed = true;
+                                        }
                                     }
                                 }
                             }
-                        });
-                    }
+
+                            if (game.board[y][x].cell_state == CellState::Flagged) {
+                                let text = RichText::new("🚩").color(Color32::RED);
+                                let button = if (is_highlighted == true) {
+                                    egui::Button::new(text)
+                                        .min_size(Vec2::new(cell_size, cell_size))
+                                        .fill(Color32::GRAY)
+                                } else {
+                                    egui::Button::new(text)
+                                        .min_size(Vec2::new(cell_size, cell_size))
+                                };
+
+                                let unflag = ui.add(button);
+
+                                if unflag.secondary_clicked() {
+                                    let _ = MSGame::apply_action(game, ActionKind::Flag(x, y));
+                                }
+                            }
+                        }
+                    });
+                }
 
                 self.last_opened_cell = latest_clicked_cell;
 
-                if let Some(new_highlights) = neighbors_to_highlight { // Apply neighbor highlighting for next frame
+                if let Some(new_highlights) = neighbors_to_highlight {
+                    // Apply neighbor highlighting for next frame
                     self.saved_highlights = new_highlights;
                 } else if (number_cell_pressed == false) {
                     self.saved_highlights.clear();
@@ -317,14 +317,11 @@ impl Game for MinesweeperGame {
             }
 
             GameState::WinnerOrLoserPopup {
-
                 won,
                 picked_difficulty,
                 game,
                 show_popup,
-
-                } => {
-                
+            } => {
                 let height = game.board.len();
                 let width = game.board[0].len();
 
@@ -335,7 +332,6 @@ impl Game for MinesweeperGame {
                 let mut retry = false;
 
                 ui.horizontal(|ui| {
-
                     if (ui.button("🔙 Zurück").clicked() == true) {
                         re_choose_difficulty = true;
                     }
@@ -348,14 +344,16 @@ impl Game for MinesweeperGame {
 
                 let available_width = ui.available_width();
                 let available_height = ui.available_height();
-                
+
                 let cell_size = 25.0;
 
                 let spacing_x = ui.spacing().item_spacing.x;
                 let spacing_y = ui.spacing().item_spacing.y;
 
-                let board_width = (width as f32 * cell_size) + ((width as f32 - 1.0).max(0.0) * spacing_x);
-                let board_height = (height as f32 * cell_size) + ((height as f32 - 1.0).max(0.0) * spacing_y);
+                let board_width =
+                    (width as f32 * cell_size) + ((width as f32 - 1.0).max(0.0) * spacing_x);
+                let board_height =
+                    (height as f32 * cell_size) + ((height as f32 - 1.0).max(0.0) * spacing_y);
 
                 let vertical_offset = if (board_height < available_height) {
                     (available_height - board_height) / 2.0
@@ -369,49 +367,46 @@ impl Game for MinesweeperGame {
                 };
 
                 ui.add_space(vertical_offset);
-                
+
                 for y in 0..height {
-
                     ui.horizontal(|ui| {
-
                         ui.add_space(horizontal_offset);
-                        
+
                         for x in 0..width {
                             if (game.board[y][x].cell_state == CellState::Unopened) {
-                                    let button =
-                                        egui::Button::new("")
-                                        .min_size(Vec2::new(cell_size, cell_size));
-                                    let _click_or_flag = ui.add(button);
-                                }
+                                let button =
+                                    egui::Button::new("").min_size(Vec2::new(cell_size, cell_size));
+                                let _click_or_flag = ui.add(button);
+                            }
 
                             if (game.board[y][x].cell_state == CellState::Opened) {
-
                                 match game.board[y][x].cell_content {
-
                                     CellContent::Blank => {
                                         let mut button = egui::Button::new("")
                                             .fill(Color32::DARK_GRAY)
                                             .min_size(Vec2::new(cell_size, cell_size));
 
                                         if (self.last_opened_cell == Some((y, x))) {
-                                            button = button.stroke(egui::Stroke::new(3.0, Color32::GOLD));
+                                            button = button
+                                                .stroke(egui::Stroke::new(3.0, Color32::GOLD));
                                         }
-                                            
+
                                         ui.add(button);
-                                        }
+                                    }
 
                                     CellContent::Mine => {
                                         let text = RichText::new("💣").color(Color32::WHITE);
                                         let mut button = egui::Button::new(text)
                                             .fill(Color32::BLACK)
                                             .min_size(Vec2::new(cell_size, cell_size));
-                                            
+
                                         if (self.last_opened_cell == Some((y, x))) {
-                                            button = button.stroke(egui::Stroke::new(3.0, Color32::RED));
+                                            button =
+                                                button.stroke(egui::Stroke::new(3.0, Color32::RED));
                                         }
-                                            
+
                                         ui.add(button);
-                                        }
+                                    }
 
                                     CellContent::Number(i) => {
                                         let fill_color = color_for_mines_nearby(i);
@@ -421,27 +416,26 @@ impl Game for MinesweeperGame {
                                         let mut button = egui::Button::new(text)
                                             .fill(fill_color)
                                             .min_size(Vec2::new(cell_size, cell_size));
-                                            
+
                                         if (self.last_opened_cell == Some((y, x))) {
-                                            button = button.stroke(egui::Stroke::new(3.0, Color32::GOLD));
+                                            button = button
+                                                .stroke(egui::Stroke::new(3.0, Color32::GOLD));
                                         }
-                                            
+
                                         ui.add(button);
-                                        }
                                     }
                                 }
-
-                                if (game.board[y][x].cell_state == CellState::Flagged) {
-                                    let text = RichText::new("🚩")
-                                        .color(Color32::RED);
-                                    let button =
-                                        egui::Button::new(text)
-                                        .min_size(Vec2::new(cell_size, cell_size));
-                                    let _unflag = ui.add(button);
-                                }
                             }
-                        });
-                    }
+
+                            if (game.board[y][x].cell_state == CellState::Flagged) {
+                                let text = RichText::new("🚩").color(Color32::RED);
+                                let button = egui::Button::new(text)
+                                    .min_size(Vec2::new(cell_size, cell_size));
+                                let _unflag = ui.add(button);
+                            }
+                        }
+                    });
+                }
 
                 let window_text = if (*won == true) {
                     "🎉 YOU WON! 🎉"
@@ -449,36 +443,57 @@ impl Game for MinesweeperGame {
                     "💣 YOU LOST! 💣"
                 };
                 if (*show_popup == true) {
-
                     let popup_button_width = 200.0;
                     let popup_button_height = 50.0;
                     let spacing = 10.0;
 
-                    egui::Window::new(window_text) 
-                    .collapsible(false)
-                    .resizable(false)
-                    .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                    .show(ui.ctx(), |ui| {
+                    egui::Window::new(window_text)
+                        .collapsible(false)
+                        .resizable(false)
+                        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                        .show(ui.ctx(), |ui| {
+                            ui.vertical_centered(|ui| {
+                                if (add_button(
+                                    ui,
+                                    "Spielfeld anzeigen",
+                                    popup_button_width,
+                                    popup_button_height,
+                                )
+                                .clicked()
+                                    == true)
+                                {
+                                    close_popup = true;
+                                }
 
-                        ui.vertical_centered(|ui| {
-                            
-                            if (add_button(ui, "Spielfeld anzeigen", popup_button_width, popup_button_height).clicked() == true) {
-                                close_popup = true;
-                            }
+                                ui.add_space(spacing);
 
-                            ui.add_space(spacing);
+                                if (add_button(
+                                    ui,
+                                    "Andere Schwierigkeit",
+                                    popup_button_width,
+                                    popup_button_height,
+                                )
+                                .clicked()
+                                    == true)
+                                {
+                                    re_choose_difficulty = true;
+                                }
 
-                            if (add_button(ui, "Andere Schwierigkeit", popup_button_width, popup_button_height).clicked() == true) {
-                                re_choose_difficulty = true;
-                            }
+                                ui.add_space(spacing);
 
-                            ui.add_space(spacing);
-
-                            if (add_button(ui, "Nochmal versuchen", popup_button_width, popup_button_height).clicked() == true) {
-                                retry = true;
-                        }
-                    });
-                });
+                                if (add_button(
+                                    ui,
+                                    "Nochmal versuchen",
+                                    popup_button_width,
+                                    popup_button_height,
+                                )
+                                .clicked()
+                                    == true)
+                                {
+                                    retry = true;
+                                }
+                            });
+                        });
                 }
 
                 if (re_choose_difficulty == true) {
