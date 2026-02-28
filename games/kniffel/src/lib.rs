@@ -94,6 +94,7 @@ impl KniffelGame {
 
             let play_local_button =
                 egui::Button::new(egui::RichText::new("Lokal Spielen").size(text_size))
+                    .fill(ui.visuals().selection.bg_fill)
                     .min_size(egui::vec2(button_width, button_height));
             if ui.add(play_local_button).clicked() {
                 self.screen = Screen::LocalSetup;
@@ -104,6 +105,7 @@ impl KniffelGame {
             let create_multiplayer_room_button = egui::Button::new(
                 egui::RichText::new("Mehrspieler Raum erstellen").size(text_size),
             )
+            .fill(ui.visuals().selection.bg_fill)
             .min_size(egui::vec2(button_width, button_height));
             if ui.add(create_multiplayer_room_button).clicked() {
                 self.create_host_button_clicked();
@@ -122,8 +124,6 @@ impl KniffelGame {
                 );
             }
         }
-
-        ui.separator();
 
         if self.players == 1 {
             ui.add(egui::Slider::new(&mut self.bots, 1..=3).text("Anzahl Computergegner"));
@@ -217,17 +217,19 @@ impl KniffelGame {
                         ui.end_row();
                     }
 
+                    self.render_seperator_cells(ui);
                     ui.separator();
                     ui.end_row();
 
                     ui.label("Oben gesamt");
-                    self.render_totals(ui, 0); //OBEN GESAMT FIX
+                    self.render_totals(ui, 0);
                     ui.end_row();
 
                     ui.label("Oben mit Bonus").on_hover_text("Wenn mindestens 63 Punkte oben erreicht wurden, werden 35 Bonuspunkte addiert");
-                    self.render_totals(ui, 1); //FIX
+                    self.render_totals(ui, 1);
                     ui.end_row();
 
+                    self.render_seperator_cells(ui);
                     ui.separator();
                     ui.end_row();
 
@@ -247,22 +249,24 @@ impl KniffelGame {
                         ui.end_row();
                     }
 
-                    self.render_static_cells(ui, "-");
+                    self.render_seperator_cells(ui);
+                    ui.separator();
                     ui.end_row();
 
                     ui.label("Punkte oben");
-                    self.render_totals(ui, 1); //FIX
+                    self.render_totals(ui, 1);
                     ui.end_row();
 
                     ui.label("Punkte unten");
-                    self.render_totals(ui, 2); //FIX
+                    self.render_totals(ui, 2);
                     ui.end_row();
+                    self.render_seperator_cells(ui);
 
                     ui.separator();
                     ui.end_row();
 
                     ui.label("Punkte gesamt");
-                    self.render_totals(ui, 3); //FIX
+                    self.render_totals(ui, 3);
                 });
 
         });
@@ -404,11 +408,11 @@ impl KniffelGame {
         }
     }
 
-    fn render_static_cells(&self, ui: &mut egui::Ui, label: &str) {
+    fn render_seperator_cells(&self, ui: &mut egui::Ui) {
         let active_players = self.players + self.bots;
 
         for _ in 0..active_players {
-            ui.label(label);
+            ui.separator();
         }
     }
 
