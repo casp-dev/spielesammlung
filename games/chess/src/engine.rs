@@ -73,7 +73,7 @@ fn get_best_move_black(
             let from_pos = colored_meeple.pos;
             let to_pos = check_meep;
 
-            //does the move, hier fehlt die rochade!!!
+            //does the move
             let mut from = chess_board_clone[from_pos.0][from_pos.1].take().unwrap();
             from.pos = to_pos;
 
@@ -93,7 +93,7 @@ fn get_best_move_black(
                 opposite_turn_meeples_clone.remove(index);
             }
 
-            //checks if the move is legal (king is not in check)
+            //checks if the move is legal
             let mut legal_move = true;
             for check_meeple in opposite_turn_meeples_clone.iter() {
                 if check_meeple
@@ -154,7 +154,7 @@ fn get_best_move_black(
     best_move
 }
 
-/// Quiescence search - continues evaluating capture moves to avoid horizon effect
+/// Quiescence search, continues evaluating capture moves to avoid horizon effect
 fn quiescence(
     chess_board: [[Option<Meeple>; 8]; 8],
     last_move: ((usize, usize), (usize, usize)),
@@ -300,7 +300,7 @@ fn get_score_black(
                 opposite_turn_meeples_clone.remove(index);
             }
 
-            //checks if the move is legal (king is not in check)
+            //checks if the move is legal
             let mut legal_move = true;
 
             for check_meeple in opposite_turn_meeples_clone.iter() {
@@ -342,7 +342,7 @@ fn get_score_black(
                 )
             };
 
-            // Update best score and alpha-beta values
+            //updates best score and alpha-beta values
             if is_maximizing {
                 if score > best_score {
                     best_score = score;

@@ -25,7 +25,7 @@ pub enum Type {
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 ///This struct has the Meeple in it with the position (the pos is also in the field)
-///and the type and the color of the meeple
+///and the type and the color of the meeple and the move counter (for pawns and casteling) and the value (for the evaluation)
 pub struct Meeple {
     pub pos: (usize, usize),
     pub typ: Type,
@@ -315,7 +315,6 @@ impl Meeple {
         (possible_moves, false, false)
     }
     fn check_casteling_king_and_queen(
-        // possible_moves.append(&m
         &self,
         chess_board: &[[Option<Meeple>; 8]; 8],
         opponent_meeples: &Vec<Meeple>,
@@ -407,7 +406,6 @@ impl Meeple {
         }
     }
 
-    ///returns if check_pos is the opposite color of the meeple
     fn pos_is_opposite_color(
         &self,
         check_pos: (usize, usize),
@@ -425,7 +423,6 @@ impl Meeple {
         }
     }
 
-    ///returns if check_pos is the color of the meeple
     fn pos_is_same_color(
         &self,
         check_pos: (usize, usize),
@@ -443,7 +440,6 @@ impl Meeple {
         }
     }
 
-    ///returns if the position is None or the opposite color of the meeple
     fn pos_is_opposite_color_or_none(
         &self,
         check_pos: (usize, usize),

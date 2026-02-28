@@ -75,7 +75,7 @@ impl CoreGame for GoGame {
     fn ui(&mut self, ui: &mut egui::Ui) {
         match self.game_state {
             GoGameState::Menu => {
-                self.multiplayer_ui(ui, false, false);
+                self.gamemode_selection_ui(ui, false, false);
             }
             GoGameState::WaitingForOpponent => {
                 ui.heading("Rust Go - Multiplayer");

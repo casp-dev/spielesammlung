@@ -70,15 +70,15 @@ pub trait MultiplayerGame: Game {
                 self.on_text(txt);
             }
             Ok(_) => {
-                eprintln!("Received non-text message");
+                //eprintln!("Received non-text message");
             }
-            Err(e) => {
-                eprintln!("WebSocket error: {}", e);
+            Err(_) => {
+                //eprintln!("WebSocket error: {}", e);
             }
         }
     }
 
-    fn multiplayer_ui(&mut self, ui: &mut Ui, bot_level: bool, player_count: bool) { // better name would be game_mode_selection_ui
+    fn gamemode_selection_ui(&mut self, ui: &mut Ui, bot_level: bool, player_count: bool) {
 
         let available_width = ui.available_width();
         let available_height = ui.available_height();
@@ -91,30 +91,63 @@ pub trait MultiplayerGame: Game {
         let total_buttons_height = (button_height * 3.0) + (button_spacing * 2.0);
         let center_offset = (ui.available_height() - total_buttons_height) / 2.0 - buffer;
 
-        let text_size  = 20.0;
+        let button_text_size  = 20.0;
+
+        let estimated_bot_selection_width = 210.0; // estimated width of the bot slider + text + textfield
+        let bot_selection_horizontal_offset = available_width - estimated_bot_selection_width;
+        let estimated_multiplayer_element_height = 25.0; // used to move the bot slider to the top of the corner
+
+        let gamemode_button_color =  egui::Color32::from_rgb(0, 131, 255);
+
+        let is_darkmode_on = ui.visuals().dark_mode;
+        let frame_color = if is_darkmode_on { egui::Color32::from_gray(50) } else { egui::Color32::from_gray(220) };
 
         ui.horizontal(|ui| {
 
-            ui.label("Schlüssel:");
-            ui.add(
-                egui::TextEdit::singleline(self.get_room_key_text())
-                    .desired_width(150.0),
-            );
-            if ui.button("Beitreten").clicked() {
+            ui.label(egui::RichText::new("Schlüssel:")
+            .size(12.5));
+
+            egui::Frame::none()
+                .fill(frame_color)
+                .rounding(5.0)
+                .inner_margin(egui::vec2(8.0, 1.0))
+                .show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(self.get_room_key_text())
+                            .desired_width(150.0)
+                            .frame(false)
+                    );
+                });
+
+            let join_btn = egui::Button::new(egui::RichText::new("Beitreten"));
+
+            if ui.add(join_btn).clicked() {
                 self.join_room();
             }
         });
 
         let mut bot_level_val = None;
+
         if bot_level {
+
             ui.horizontal(|ui| {
-                bot_level_val = Some(self.bot_level_slider(ui));
+
+                ui.add_space(bot_selection_horizontal_offset);
+
+                ui.vertical( |ui|{
+
+                    ui.add_space(-estimated_multiplayer_element_height);
+                    bot_level_val = Some(self.bot_level_slider(ui));
+                });
             });
         }
 
         let mut player_count_val = None;
+
         if player_count {
-            ui.horizontal(|ui| {
+            
+            ui.vertical(|ui| {
+
                 player_count_val = Some(self.player_count_slider(ui));
             });
         }
@@ -123,18 +156,14 @@ pub trait MultiplayerGame: Game {
 
             ui.add_space(center_offset);
 
-            let play_local_button = egui::Button::new(egui::RichText::new("Lokal Spielen").size(text_size))
+            let play_local_button = egui::Button::new(egui::RichText::new("Lokal Spielen")
+                .size(button_text_size)
+                .color(egui::Color32::WHITE))
+                .fill(gamemode_button_color)
                 .min_size(egui::vec2(button_width, button_height));
+
             if ui.add(play_local_button).clicked() {
                 self.local_button_clicked(player_count_val);
-            }
-
-            ui.add_space(button_spacing);
-
-            let create_muliplayer_room_button = egui::Button::new(egui::RichText::new("Mehrspieler Raum erstellen").size(text_size))
-                .min_size(egui::vec2(button_width, button_height));
-            if ui.add(create_muliplayer_room_button).clicked() {
-                self.create_host_button_clicked();
             }
 
             ui.add_space(button_spacing);
@@ -146,10 +175,27 @@ pub trait MultiplayerGame: Game {
                     } else {
                         "Spiele gegen einen Bot".to_string()
                     }
-                ).size(text_size)
-            ).min_size(egui::vec2(button_width, button_height));
+                )
+                .size(button_text_size)
+                .color(egui::Color32::WHITE)
+            )
+            .fill(gamemode_button_color)
+            .min_size(egui::vec2(button_width, button_height));
+            
             if ui.add(play_vs_bot_button).clicked() {
                 self.bot_button_clicked(bot_level_val);
+            }
+
+            ui.add_space(button_spacing);
+
+            let create_multiplayer_room_button = egui::Button::new(egui::RichText::new("Mehrspieler Raum erstellen")
+                .size(button_text_size)
+                .color(egui::Color32::WHITE))
+                .fill(gamemode_button_color)
+                .min_size(egui::vec2(button_width, button_height));
+
+            if ui.add(create_multiplayer_room_button).clicked() {
+                self.create_host_button_clicked();
             }
         });
     }
