@@ -145,19 +145,20 @@ impl YahtzeeGame for Game {
                 return Err("Noch kein Gewinner");
             }
         }
+
+        // Max Punkte finden
         let mut max_points = 0;
-        let mut winner_index = Vec::new();
         for index_player in 0..self.number_of_players {
             if self.all_players[index_player].point_table.total_points[3] > max_points {
                 max_points = self.all_players[index_player].point_table.total_points[3];
-                winner_index.push(index_player);
             }
         }
-        if winner_index[0] < self.number_of_players - 1 {
-            for index_player in winner_index[0]..self.number_of_players {
-                if self.all_players[index_player].point_table.total_points[3] == max_points {
-                    winner_index.push(index_player);
-                }
+
+        // alle Spieler mit max pkt finden
+        let mut winner_index = Vec::new();
+        for index_player in 0..self.number_of_players {
+            if self.all_players[index_player].point_table.total_points[3] == max_points {
+                winner_index.push(index_player);
             }
         }
 

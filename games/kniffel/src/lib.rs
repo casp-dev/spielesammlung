@@ -3,12 +3,20 @@ mod kniffel;
 
 use crate::bot::*;
 use crate::kniffel::*;
-use game_core::Game;
+use game_core::{Game, MultiplayerGame};
 use kniffel::{next_player, throw_dice, YahtzeeGame};
 
+use serde_json::Value;
+use std::net::TcpStream;
+use tungstenite::stream::MaybeTlsStream;
+use tungstenite::WebSocket;
+
+#[derive(PartialEq)]
 enum Screen {
-    Setup,
+    Menu,
+    LocalSetup,
     InGame,
+    WaitingForOpponent,
 }
 
 pub struct KniffelGame {
@@ -17,6 +25,9 @@ pub struct KniffelGame {
     player_buttons: Vec<Vec<Option<u32>>>,
     bots: usize,
     game: kniffel::Game,
+    client: Option<WebSocket<MaybeTlsStream<TcpStream>>>,
+    multiplayer: Option<usize>,
+    room_key: String,
 }
 
 impl Default for KniffelGame {
@@ -28,11 +39,14 @@ impl Default for KniffelGame {
 impl KniffelGame {
     pub fn new() -> Self {
         Self {
-            screen: Screen::Setup,
+            screen: Screen::Menu,
             players: 2,
             player_buttons: vec![vec![None; 13]; 2],
             bots: 0,
             game: <kniffel::Game as YahtzeeGame>::new(2, 0).unwrap(),
+            client: None,
+            multiplayer: None,
+            room_key: String::new(),
         }
     }
 }
@@ -44,14 +58,62 @@ impl Game for KniffelGame {
 
     fn ui(&mut self, ui: &mut egui::Ui) {
         match self.screen {
-            Screen::Setup => self.ui_setup(ui),
+            Screen::Menu => self.ui_menu(ui),
+            Screen::LocalSetup => self.ui_local_setup(ui),
             Screen::InGame => self.ui_game(ui),
+            Screen::WaitingForOpponent => self.ui_waiting(ui),
         }
     }
 }
 
 impl KniffelGame {
-    fn ui_setup(&mut self, ui: &mut egui::Ui) {
+    fn ui_menu(&mut self, ui: &mut egui::Ui) {
+        let available_width = ui.available_width();
+        let available_height = ui.available_height();
+
+        let button_width = (available_width * 0.3).clamp(300.0, 400.0);
+        let button_height = (available_height * 0.08).clamp(50.0, 100.0);
+        let button_spacing = 10.0;
+        let buffer = 75.0;
+
+        let total_buttons_height = (button_height * 2.0) + button_spacing;
+        let center_offset = (ui.available_height() - total_buttons_height) / 2.0 - buffer;
+
+        let text_size = 20.0;
+
+        ui.horizontal(|ui| {
+            ui.label("Schlüssel:");
+            ui.add(egui::TextEdit::singleline(&mut self.room_key).desired_width(150.0));
+            if ui.button("Beitreten").clicked() {
+                self.join_room();
+            }
+        });
+
+        ui.vertical_centered(|ui| {
+            ui.add_space(center_offset);
+
+            let play_local_button =
+                egui::Button::new(egui::RichText::new("Lokal Spielen").size(text_size))
+                    .fill(ui.visuals().selection.bg_fill)
+                    .min_size(egui::vec2(button_width, button_height));
+            if ui.add(play_local_button).clicked() {
+                self.screen = Screen::LocalSetup;
+            }
+
+            ui.add_space(button_spacing);
+
+            let create_multiplayer_room_button = egui::Button::new(
+                egui::RichText::new("Mehrspieler Raum erstellen").size(text_size),
+            )
+            .fill(ui.visuals().selection.bg_fill)
+            .min_size(egui::vec2(button_width, button_height));
+            if ui.add(create_multiplayer_room_button).clicked() {
+                self.create_host_button_clicked();
+            }
+        });
+    }
+
+    fn ui_local_setup(&mut self, ui: &mut egui::Ui) {
         ui.heading("Neues Kniffelspiel erstellen");
         ui.separator();
 
@@ -63,18 +125,10 @@ impl KniffelGame {
             }
         }
 
-        ui.separator();
-
         if self.players == 1 {
-            ui.add(
-                egui::Slider::new(&mut self.bots, 1..=3) //TODO: wenn player 1 dann muss bot auf mindestens 1 locken (0 unerreichbar), bei 4 spielern automatisch auf 0
-                    .text("Anzahl Computergegner"),
-            );
+            ui.add(egui::Slider::new(&mut self.bots, 1..=3).text("Anzahl Computergegner"));
         } else {
-            ui.add(
-                egui::Slider::new(&mut self.bots, 0..=3) //TODO: wenn player 1 dann muss bot auf mindestens 1 locken (0 unerreichbar), bei 4 spielern automatisch auf 0
-                    .text("Anzahl Computergegner"),
-            );
+            ui.add(egui::Slider::new(&mut self.bots, 0..=3).text("Anzahl Computergegner"));
         }
 
         ui.separator();
@@ -84,9 +138,49 @@ impl KniffelGame {
             self.player_buttons = vec![vec![None; 13]; self.players + self.bots];
             self.screen = Screen::InGame;
         }
+
+        ui.separator();
+
+        if ui.button("Zurück").clicked() {
+            self.screen = Screen::Menu;
+        }
+    }
+
+    fn ui_waiting(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Rust Kniffel - Multiplayer");
+        ui.label(format!("Room ID: {}", self.room_key));
+        ui.label("Warte auf Gegner...");
+
+        // Non-blocking: auf PlayerJoined msg warten
+        if let Some(client) = &mut self.client {
+            ui.ctx().request_repaint();
+
+            let received = match client.read() {
+                Ok(tungstenite::Message::Text(txt)) => Some(txt),
+                Err(tungstenite::Error::Io(ref e))
+                    if e.kind() == std::io::ErrorKind::WouldBlock =>
+                {
+                    None
+                }
+                _ => None,
+            };
+
+            if let Some(txt) = received {
+                if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                    if v.get("type").and_then(|t| t.as_str()) == Some("PlayerJoined") {
+                        self.start_multiplayer_game();
+                    }
+                }
+            }
+        }
     }
 
     fn ui_game(&mut self, ui: &mut egui::Ui) {
+        // Check for incoming multiplayer messages
+        if self.multiplayer.is_some() && self.client.is_some() {
+            self.check_multiplayer_messages();
+        }
+
         self.process_bot_turns();
 
         egui::SidePanel::left("kniffel_side_panel").show_inside(ui, |ui| {
@@ -123,17 +217,19 @@ impl KniffelGame {
                         ui.end_row();
                     }
 
+                    self.render_seperator_cells(ui);
                     ui.separator();
                     ui.end_row();
 
                     ui.label("Oben gesamt");
-                    self.render_totals(ui, 0); //OBEN GESAMT FIX
+                    self.render_totals(ui, 0);
                     ui.end_row();
 
                     ui.label("Oben mit Bonus").on_hover_text("Wenn mindestens 63 Punkte oben erreicht wurden, werden 35 Bonuspunkte addiert");
-                    self.render_totals(ui, 1); //FIX
+                    self.render_totals(ui, 1);
                     ui.end_row();
 
+                    self.render_seperator_cells(ui);
                     ui.separator();
                     ui.end_row();
 
@@ -153,22 +249,24 @@ impl KniffelGame {
                         ui.end_row();
                     }
 
-                    self.render_static_cells(ui, "-");
+                    self.render_seperator_cells(ui);
+                    ui.separator();
                     ui.end_row();
 
                     ui.label("Punkte oben");
-                    self.render_totals(ui, 1); //FIX
+                    self.render_totals(ui, 1);
                     ui.end_row();
 
                     ui.label("Punkte unten");
-                    self.render_totals(ui, 2); //FIX
+                    self.render_totals(ui, 2);
                     ui.end_row();
+                    self.render_seperator_cells(ui);
 
                     ui.separator();
                     ui.end_row();
 
                     ui.label("Punkte gesamt");
-                    self.render_totals(ui, 3); //FIX
+                    self.render_totals(ui, 3);
                 });
 
         });
@@ -187,7 +285,21 @@ impl KniffelGame {
             ui.separator();
 
             if ui.button("Würfeln").clicked() && self.game.current_player.number_of_throws < 3 {
-                throw_dice(&mut self.game);
+                // Check if it's the local player's turn in multiplayer
+                let can_throw = if let Some(local_player_index) = self.multiplayer {
+                    local_player_index == self.game.current_player_index
+                } else {
+                    true
+                };
+
+                if can_throw {
+                    throw_dice(&mut self.game);
+
+                    // Send dice throw to opponent
+                    if self.multiplayer.is_some() {
+                        self.send_dice_throw();
+                    }
+                }
             }
 
             ui.separator();
@@ -200,19 +312,6 @@ impl KniffelGame {
                     });
             }
         });
-
-        ui.separator();
-
-        //Spielfeld quasi wo die Würfel sich bewegen bla bla
-
-        let outer_rect = ui.available_rect_before_wrap();
-        let center = outer_rect.center();
-        let size = egui::vec2(400.0, 300.0);
-
-        let centered_rect = egui::Rect::from_center_size(center, size);
-
-        ui.painter()
-            .rect_filled(centered_rect, 5.0, egui::Color32::DARK_GREEN);
 
         //sichtbar sobald Punktetabelle voll ist
 
@@ -258,6 +357,14 @@ impl KniffelGame {
 
             let is_current_player = player_index == self.game.current_player_index;
             let is_filled = current_value.is_some();
+
+            // In multiplayer mode, only allow interaction if it's the local player's turn
+            let is_local_player_turn = if let Some(local_player_index) = self.multiplayer {
+                local_player_index == player_index && is_current_player
+            } else {
+                is_current_player
+            };
+
             let category_label = if is_filled {
                 format!("{} Pkt", current_value.unwrap())
             } else {
@@ -265,7 +372,9 @@ impl KniffelGame {
             };
 
             let response = ui.add_enabled(
-                is_current_player && !is_filled && (self.game.current_player.number_of_throws > 0),
+                is_local_player_turn
+                    && !is_filled
+                    && (self.game.current_player.number_of_throws > 0),
                 egui::Button::new(category_label),
             ); //fehlt: dass Würfel gewürfelt werden, ansonsten blocked bis 1. Wurf FIX
 
@@ -287,6 +396,11 @@ impl KniffelGame {
                     player.point_table.points_thrown[category] = Some(points);
                 }
 
+                // Send move to opponent in multiplayer
+                if self.multiplayer.is_some() {
+                    self.send_category_selection(category, points);
+                }
+
                 next_player(&mut self.game);
 
                 self.process_bot_turns();
@@ -294,11 +408,11 @@ impl KniffelGame {
         }
     }
 
-    fn render_static_cells(&self, ui: &mut egui::Ui, label: &str) {
+    fn render_seperator_cells(&self, ui: &mut egui::Ui) {
         let active_players = self.players + self.bots;
 
         for _ in 0..active_players {
-            ui.label(label);
+            ui.separator();
         }
     }
 
@@ -325,7 +439,21 @@ impl KniffelGame {
             };
 
             if dice_button.clicked() {
-                self.game = change_blocked_status_dice(&mut self.game, dice_index).clone();
+                // Check if it's the local player's turn in multiplayer
+                let can_lock = if let Some(local_player_index) = self.multiplayer {
+                    local_player_index == self.game.current_player_index
+                } else {
+                    true
+                };
+
+                if can_lock {
+                    self.game = change_blocked_status_dice(&mut self.game, dice_index).clone();
+
+                    // Send dice lock status to opponent
+                    if self.multiplayer.is_some() {
+                        self.send_dice_lock(dice_index);
+                    }
+                }
             }
         }
     }
@@ -350,4 +478,254 @@ impl KniffelGame {
 fn display_current_player(ui: &mut egui::Ui, game: &kniffel::Game) {
     let player_num = game.current_player_index + 1;
     ui.label(format!("Spieler {} ist dran", player_num));
+}
+
+impl MultiplayerGame for KniffelGame {
+    fn on_text(&mut self, str: String) {
+        println!("Received: {}", str);
+
+        let v: Value = match serde_json::from_str(&str) {
+            Ok(val) => val,
+            Err(e) => {
+                eprintln!("Failed to parse JSON: {}", e);
+                return;
+            }
+        };
+
+        let msg_type = match v.get("type").and_then(|t| t.as_str()) {
+            Some(t) => t,
+            None => return,
+        };
+
+        match msg_type {
+            "DiceThrow" => {
+                // Receive opponent's dice throw
+                if let Some(dice_array) = v["data"]["dice"].as_array() {
+                    for (i, dice_val) in dice_array.iter().enumerate() {
+                        if i < 5 {
+                            if let Some(eyes) = dice_val.as_u64() {
+                                self.game.current_player.dice_throw[i].eyes = eyes as u8;
+                            }
+                        }
+                    }
+                }
+                if let Some(throws) = v["data"]["number_of_throws"].as_u64() {
+                    self.game.current_player.number_of_throws = throws as u8;
+                }
+            }
+            "DiceLock" => {
+                // Receive opponent's dice lock status
+                if let Some(dice_index) = v["data"]["dice_index"].as_u64() {
+                    let idx = dice_index as usize;
+                    if idx < 5 {
+                        self.game = change_blocked_status_dice(&mut self.game, idx).clone();
+                    }
+                }
+            }
+            "CategorySelection" => {
+                // Receive opponent's category selection
+                if let Some(category) = v["data"]["category"].as_u64() {
+                    let cat = category as usize;
+                    if let Some(points) = v["data"]["points"].as_u64() {
+                        let pts = points as u8;
+
+                        self.game = add_dice_point_table(&mut self.game, cat).clone();
+
+                        let player_index = self.game.current_player_index;
+                        if let Some(row) = self.player_buttons.get_mut(player_index) {
+                            if let Some(slot) = row.get_mut(cat) {
+                                *slot = Some(pts as u32);
+                            }
+                        }
+
+                        if let Some(player) = self.game.all_players.get_mut(player_index) {
+                            player.point_table.points_thrown[cat] = Some(pts);
+                        }
+
+                        next_player(&mut self.game);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn local_button_clicked(&mut self, _player_counter: Option<u16>) -> Option<u16> {
+        // Switch to local setup screen
+        self.screen = Screen::LocalSetup;
+        None
+    }
+
+    fn bot_button_clicked(&mut self, _bot_level: Option<u16>) -> Option<u16> {
+        // Switch to local setup screen
+        self.screen = Screen::LocalSetup;
+        None
+    }
+
+    fn set_client(&mut self, client: WebSocket<MaybeTlsStream<TcpStream>>) {
+        self.client = Some(client);
+    }
+
+    fn get_client(&mut self) -> &mut WebSocket<MaybeTlsStream<TcpStream>> {
+        self.client.as_mut().unwrap()
+    }
+
+    fn get_room_key_text(&mut self) -> &mut String {
+        &mut self.room_key
+    }
+
+    fn set_room_key_text(&mut self, text: String) {
+        self.room_key = text;
+    }
+
+    fn player_count_slider(&mut self, _ui: &mut egui::Ui) -> u16 {
+        2 // Kniffel multiplayer is always 2 players
+    }
+
+    fn bot_level_slider(&mut self, _ui: &mut egui::Ui) -> u16 {
+        0 // No bot levels in multiplayer
+    }
+
+    fn start_multiplayer_game(&mut self) {
+        // Set non-blocking mode
+        if let Some(ref client) = self.client {
+            if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
+                let _ = tcp.set_nonblocking(true);
+            }
+        }
+
+        // Initialize game for 2 players, no bots
+        self.game = <kniffel::Game as YahtzeeGame>::new(2, 0).unwrap();
+        self.player_buttons = vec![vec![None; 13]; 2];
+        self.players = 2;
+        self.bots = 0;
+
+        // Determine if this player is player 0 or 1
+        if self.screen == Screen::WaitingForOpponent {
+            // Host is player 0
+            self.multiplayer = Some(0);
+            println!("I am player 0 (host)");
+        } else {
+            // Joiner is player 1
+            self.multiplayer = Some(1);
+            println!("I am player 1 (joiner)");
+        }
+
+        self.screen = Screen::InGame;
+    }
+
+    fn create_host_button_clicked(&mut self) {
+        // Connect and create room
+        if self
+            .connect(String::from("ws://localhost:9000"), None)
+            .is_err()
+        {
+            self.set_room_key_text(String::from("Connection failed"));
+            return;
+        }
+        if self.send(r#"{ "type": "CreateRoom" }"#).is_err() {
+            self.set_room_key_text(String::from("Communication error"));
+            return;
+        }
+        let json_str = self.wait_one_reply();
+        let v: Value = match serde_json::from_str(&json_str) {
+            Ok(val) => val,
+            Err(_) => {
+                self.set_room_key_text(String::from("json parse failed"));
+                return;
+            }
+        };
+        let room_id = match v.get("room_id").and_then(|id| id.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                self.set_room_key_text(String::from("bad server response"));
+                return;
+            }
+        };
+        self.set_room_key_text(room_id);
+
+        self.screen = Screen::WaitingForOpponent;
+
+        // Set non-blocking mode for waiting
+        if let Some(ref client) = self.client {
+            if let tungstenite::stream::MaybeTlsStream::Plain(ref tcp) = *client.get_ref() {
+                let _ = tcp.set_nonblocking(true);
+            }
+        }
+    }
+}
+
+impl KniffelGame {
+    fn check_multiplayer_messages(&mut self) {
+        if self.client.is_none() {
+            return;
+        }
+
+        // Non-blocking read
+        match self.client.as_mut().unwrap().read() {
+            Ok(tungstenite::Message::Text(txt)) => {
+                self.on_text(txt);
+            }
+            Err(tungstenite::Error::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                // No message available, this is fine
+            }
+            Err(e) => {
+                eprintln!("WebSocket error: {}", e);
+            }
+            _ => {}
+        }
+    }
+
+    fn send_dice_throw(&mut self) {
+        if self.client.is_none() {
+            return;
+        }
+
+        let dice_values: Vec<u8> = self
+            .game
+            .current_player
+            .dice_throw
+            .iter()
+            .map(|d| d.eyes)
+            .collect();
+
+        let msg = format!(
+            r#"{{ "type": "GameMove", "data": {{ "type": "DiceThrow", "dice": {:?}, "number_of_throws": {} }} }}"#,
+            dice_values, self.game.current_player.number_of_throws
+        );
+
+        if let Err(e) = self.send(&msg) {
+            eprintln!("Failed to send dice throw: {}", e);
+        }
+    }
+
+    fn send_dice_lock(&mut self, dice_index: usize) {
+        if self.client.is_none() {
+            return;
+        }
+
+        let msg = format!(
+            r#"{{ "type": "GameMove", "data": {{ "type": "DiceLock", "dice_index": {} }} }}"#,
+            dice_index
+        );
+
+        if let Err(e) = self.send(&msg) {
+            eprintln!("Failed to send dice lock: {}", e);
+        }
+    }
+
+    fn send_category_selection(&mut self, category: usize, points: u8) {
+        if self.client.is_none() {
+            return;
+        }
+
+        let msg = format!(
+            r#"{{ "type": "GameMove", "data": {{ "type": "CategorySelection", "category": {}, "points": {} }} }}"#,
+            category, points
+        );
+
+        if let Err(e) = self.send(&msg) {
+            eprintln!("Failed to send category selection: {}", e);
+        }
+    }
 }
