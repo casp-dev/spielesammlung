@@ -246,18 +246,19 @@ impl Game {
                         continue;
                     }
                     visited[ci] = true;
+                    region.push((cx, cy));
 
-                    match self.board.get(cx, cy) {
-                        None => {
-                            region.push((cx, cy));
-                            for (nx, ny) in self.board.get_neighbors(cx, cy) {
-                                if !visited[ny * size + nx] {
+                    for (nx, ny) in self.board.get_neighbors(cx, cy) {
+                        let ni = ny * size + nx;
+                        match self.board.get(nx, ny) {
+                            None => {
+                                if !visited[ni] {
                                     stack.push((nx, ny));
                                 }
                             }
+                            Some(Stone::Black) => borders_black = true,
+                            Some(Stone::White) => borders_white = true,
                         }
-                        Some(Stone::Black) => borders_black = true,
-                        Some(Stone::White) => borders_white = true,
                     }
                 }
 
