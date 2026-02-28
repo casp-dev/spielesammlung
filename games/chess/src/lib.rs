@@ -231,7 +231,7 @@ impl ChessGame {
         }
         self.pawn_mutate = false;
         if self.multiplayer.is_some() && self.multiplayer.unwrap() != self.turn {
-            let add_value:usize = match mutate_into {
+            let add_value: usize = match mutate_into {
                 Type::Queen => 42,
                 Type::Rook => 84,
                 Type::Bishop => 126,
@@ -300,14 +300,17 @@ impl ChessGame {
     fn get_all_possible_moves(&mut self) {
         let mut ret_vec: [[Option<Vec<(usize, usize)>>; 8]; 8] = Default::default();
         let colores = get_meeples_from_color(&self.game_board, self.turn);
+        let (white_pieces, black_pieces) = match self.turn {
+            Color::White => (colores.0.clone(), colores.1.clone()),
+            Color::Black => (colores.1.clone(), colores.0.clone()),
+        };
         let mut can_move = false;
-        for colored_meeple in colores.0 {
-            let meeples = get_meeples_from_color(&self.game_board, Color::White);
+        for colored_meeple in colores.0.clone() {
             let can_hit = colored_meeple.show_legal_moves(
                 &self.game_board,
                 &self.logs.last().unwrap(),
-                &meeples.0,
-                &meeples.1,
+                &white_pieces,
+                &black_pieces,
             );
             if !can_hit.0.is_empty() {
                 can_move = true;
@@ -319,8 +322,26 @@ impl ChessGame {
         }
 
         if !can_move {
-            //patt
-            self.state = format!("{:?} has won", opposite_color(self.turn));
+            for colored_meeple in colores.1.clone() {
+                if colored_meeple
+                    .show_moves(
+                        &self.game_board,
+                        &self.logs.last().unwrap(),
+                        &colores.0
+                    )
+                    .contains(&colores.0.last().unwrap().pos)
+                {
+                    self.state = format!(
+                        "{:?} has won",
+                        opposite_color(self.turn)
+                    );
+                    return;
+                }
+            }
+            self.state = format!(
+                "Tie because of no possible moves for {:?}",
+                opposite_color(self.turn)
+            );
         }
         self.possible_moves = ret_vec.clone();
     }
@@ -475,7 +496,7 @@ impl Game for ChessGame {
 
     fn ui(&mut self, ui: &mut Ui) {
         if self.state == "waiting for opponent" {
-            ui.heading("Rust Go - Multiplayer");
+            ui.heading("Rust Chess - Multiplayer");
             ui.label(format!("Room ID: {}", self.room_key));
             ui.label("Warte auf Gegner...");
 
@@ -508,6 +529,8 @@ impl Game for ChessGame {
             if self.state == "Tie because of triple repetition"
                 || self.state == "White has won"
                 || self.state == "Black has won"
+                || self.state == "Tie because of no possible moves for White"
+                || self.state == "Tie because of no possible moves for Black"                
             {
                 ui.horizontal(|ui| {
                     ui.heading(RichText::new(&self.state).strong().color(Color32::RED));
@@ -542,12 +565,11 @@ impl Game for ChessGame {
             }
             if self.multiplayer.is_some() {
                 ui.label(format!(
-                    "You are playing as {:?}",
-                    self.multiplayer.unwrap()
+                    "You are playing as {:?} and it is {:?}'s turn",
+                    self.multiplayer.unwrap(),
+                    self.turn
                 ));
-                ui.label(format!("It is the turn of {:?}", self.turn));
                 self.wait_one_reply_game();
-            } else {
             }
             draw_board(ui, self);
         } else {
@@ -606,7 +628,7 @@ impl MultiplayerGame for ChessGame {
                     self.pawn_mutate = false;
                     self.en_passant_pos = None;
                     self.casteling_rights = ((false, false), (false, false));
-                    self.state = format!("Multiplayer as {:?}", self.multiplayer.unwrap());
+                    self.state = String::from("0.0");
                 }
             }
             _ => println!("Invalid data"),
