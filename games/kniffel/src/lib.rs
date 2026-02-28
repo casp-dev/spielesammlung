@@ -139,6 +139,8 @@ impl KniffelGame {
             self.screen = Screen::InGame;
         }
 
+        ui.separator();
+
         if ui.button("Zurück").clicked() {
             self.screen = Screen::Menu;
         }
@@ -306,19 +308,6 @@ impl KniffelGame {
                     });
             }
         });
-
-        ui.separator();
-
-        //Spielfeld quasi wo die Würfel sich bewegen bla bla
-
-        let outer_rect = ui.available_rect_before_wrap();
-        let center = outer_rect.center();
-        let size = egui::vec2(400.0, 300.0);
-
-        let centered_rect = egui::Rect::from_center_size(center, size);
-
-        ui.painter()
-            .rect_filled(centered_rect, 5.0, egui::Color32::DARK_GREEN);
 
         //sichtbar sobald Punktetabelle voll ist
 
