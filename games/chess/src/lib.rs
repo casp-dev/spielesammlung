@@ -231,7 +231,7 @@ impl ChessGame {
         }
         self.pawn_mutate = false;
         if self.multiplayer.is_some() && self.multiplayer.unwrap() != self.turn {
-            let add_value:usize = match mutate_into {
+            let add_value: usize = match mutate_into {
                 Type::Queen => 42,
                 Type::Rook => 84,
                 Type::Bishop => 126,
@@ -475,7 +475,7 @@ impl Game for ChessGame {
 
     fn ui(&mut self, ui: &mut Ui) {
         if self.state == "waiting for opponent" {
-            ui.heading("Rust Go - Multiplayer");
+            ui.heading("Rust Chess - Multiplayer");
             ui.label(format!("Room ID: {}", self.room_key));
             ui.label("Warte auf Gegner...");
 
@@ -542,13 +542,12 @@ impl Game for ChessGame {
             }
             if self.multiplayer.is_some() {
                 ui.label(format!(
-                    "You are playing as {:?}",
-                    self.multiplayer.unwrap()
+                    "You are playing as {:?} and it is {:?}'s turn",
+                    self.multiplayer.unwrap(),
+                    self.turn
                 ));
-                ui.label(format!("It is the turn of {:?}", self.turn));
                 self.wait_one_reply_game();
-            } else {
-            }
+            } 
             draw_board(ui, self);
         } else {
             self.gamemode_selection_ui(ui, true, false);
@@ -606,7 +605,7 @@ impl MultiplayerGame for ChessGame {
                     self.pawn_mutate = false;
                     self.en_passant_pos = None;
                     self.casteling_rights = ((false, false), (false, false));
-                    self.state = format!("Multiplayer as {:?}", self.multiplayer.unwrap());
+                    self.state = String::from("0.0");
                 }
             }
             _ => println!("Invalid data"),
