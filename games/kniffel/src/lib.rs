@@ -68,7 +68,47 @@ impl Game for KniffelGame {
 
 impl KniffelGame {
     fn ui_menu(&mut self, ui: &mut egui::Ui) {
-        self.multiplayer_ui(ui, false, false);
+        let available_width = ui.available_width();
+        let available_height = ui.available_height();
+
+        let button_width = (available_width * 0.3).clamp(300.0, 400.0);
+        let button_height = (available_height * 0.08).clamp(50.0, 100.0);
+        let button_spacing = 10.0;
+        let buffer = 75.0;
+
+        let total_buttons_height = (button_height * 2.0) + button_spacing;
+        let center_offset = (ui.available_height() - total_buttons_height) / 2.0 - buffer;
+
+        let text_size = 20.0;
+
+        ui.horizontal(|ui| {
+            ui.label("Schlüssel:");
+            ui.add(egui::TextEdit::singleline(&mut self.room_key).desired_width(150.0));
+            if ui.button("Beitreten").clicked() {
+                self.join_room();
+            }
+        });
+
+        ui.vertical_centered(|ui| {
+            ui.add_space(center_offset);
+
+            let play_local_button =
+                egui::Button::new(egui::RichText::new("Lokal Spielen").size(text_size))
+                    .min_size(egui::vec2(button_width, button_height));
+            if ui.add(play_local_button).clicked() {
+                self.screen = Screen::LocalSetup;
+            }
+
+            ui.add_space(button_spacing);
+
+            let create_multiplayer_room_button = egui::Button::new(
+                egui::RichText::new("Mehrspieler Raum erstellen").size(text_size),
+            )
+            .min_size(egui::vec2(button_width, button_height));
+            if ui.add(create_multiplayer_room_button).clicked() {
+                self.create_host_button_clicked();
+            }
+        });
     }
 
     fn ui_local_setup(&mut self, ui: &mut egui::Ui) {
