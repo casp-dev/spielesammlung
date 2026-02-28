@@ -38,7 +38,7 @@ impl Dice {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PointTable {
     pub points_thrown: [Option<u8>; 13], //also die Punkte bei einsern, zweiern etc
-    pub total_points: [u8; 4],           //Zwischensumme oben, oben mit bonus, unten, gesamt
+    pub total_points: [u16; 4],           //Zwischensumme oben, oben mit bonus, unten, gesamt
 }
 
 pub type DiceThrow = [Dice; 5];
@@ -365,23 +365,23 @@ fn kniffel(dice_throw: DiceThrow) -> bool {
 }
 
 fn update_totals_point_table(mut point_table: PointTable) -> PointTable {
-    let mut sum_top = 0;
+    let mut sum_top: u16 = 0;
     for point_index in 0..=5 {
         if point_table.points_thrown[point_index].is_some() {
-            sum_top += point_table.points_thrown[point_index].unwrap();
+            sum_top += point_table.points_thrown[point_index].unwrap() as u16;
         }
     }
-    let mut sum_top_with_bonus = sum_top;
+    let mut sum_top_with_bonus: u16 = sum_top;
     if sum_top > 62 {
         sum_top_with_bonus += 35;
     }
-    let mut sum_bottom = 0;
+    let mut sum_bottom: u16 = 0;
     for point_index in 6..=12 {
         if point_table.points_thrown[point_index].is_some() {
-            sum_bottom += point_table.points_thrown[point_index].unwrap();
+            sum_bottom += point_table.points_thrown[point_index].unwrap() as u16;
         }
     }
-    let sum_total = sum_top_with_bonus + sum_bottom;
+    let sum_total: u16 = sum_top_with_bonus + sum_bottom;
     point_table.total_points = [sum_top, sum_top_with_bonus, sum_bottom, sum_total];
     point_table
 }
