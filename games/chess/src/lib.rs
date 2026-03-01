@@ -324,17 +324,10 @@ impl ChessGame {
         if !can_move {
             for colored_meeple in colores.1.clone() {
                 if colored_meeple
-                    .show_moves(
-                        &self.game_board,
-                        &self.logs.last().unwrap(),
-                        &colores.0
-                    )
+                    .show_moves(&self.game_board, &self.logs.last().unwrap(), &colores.0)
                     .contains(&colores.0.last().unwrap().pos)
                 {
-                    self.state = format!(
-                        "{:?} has won",
-                        opposite_color(self.turn)
-                    );
+                    self.state = format!("{:?} has won", opposite_color(self.turn));
                     return;
                 }
             }
@@ -496,9 +489,7 @@ impl Game for ChessGame {
 
     fn ui(&mut self, ui: &mut Ui) {
         if self.state == "waiting for opponent" {
-            ui.heading("Rust Chess - Multiplayer");
-            ui.label(format!("Room ID: {}", self.room_key));
-            ui.label("Warte auf Gegner...");
+            self.waiting_screen_ui(ui, "Schach");
 
             //auf msg warten
             if self.client.is_some() {
@@ -522,15 +513,13 @@ impl Game for ChessGame {
                     }
                 }
             }
-
-            if ui.button("Spiel starten").clicked() {}
         } else if self.state != "initial" {
             let reset_btn = egui::Button::new("Reset Game");
             if self.state == "Tie because of triple repetition"
                 || self.state == "White has won"
                 || self.state == "Black has won"
                 || self.state == "Tie because of no possible moves for White"
-                || self.state == "Tie because of no possible moves for Black"                
+                || self.state == "Tie because of no possible moves for Black"
             {
                 ui.horizontal(|ui| {
                     ui.heading(RichText::new(&self.state).strong().color(Color32::RED));
