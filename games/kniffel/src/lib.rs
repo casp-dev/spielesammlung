@@ -80,6 +80,7 @@ impl KniffelGame {
         let center_offset = (ui.available_height() - total_buttons_height) / 2.0 - buffer;
 
         let text_size = 20.0;
+        let button_color = egui::Color32::from_rgb(0, 131, 255);
 
         ui.horizontal(|ui| {
             ui.label("Schlüssel:");
@@ -92,10 +93,13 @@ impl KniffelGame {
         ui.vertical_centered(|ui| {
             ui.add_space(center_offset);
 
-            let play_local_button =
-                egui::Button::new(egui::RichText::new("Lokal Spielen").size(text_size))
-                    .fill(ui.visuals().selection.bg_fill)
-                    .min_size(egui::vec2(button_width, button_height));
+            let play_local_button = egui::Button::new(
+                egui::RichText::new("Lokal Spielen")
+                    .size(text_size)
+                    .color(egui::Color32::WHITE),
+            )
+            .fill(button_color)
+            .min_size(egui::vec2(button_width, button_height));
             if ui.add(play_local_button).clicked() {
                 self.screen = Screen::LocalSetup;
             }
@@ -103,9 +107,11 @@ impl KniffelGame {
             ui.add_space(button_spacing);
 
             let create_multiplayer_room_button = egui::Button::new(
-                egui::RichText::new("Mehrspieler Raum erstellen").size(text_size),
+                egui::RichText::new("Mehrspieler Raum erstellen")
+                    .size(text_size)
+                    .color(egui::Color32::WHITE),
             )
-            .fill(ui.visuals().selection.bg_fill)
+            .fill(button_color)
             .min_size(egui::vec2(button_width, button_height));
             if ui.add(create_multiplayer_room_button).clicked() {
                 self.create_host_button_clicked();
