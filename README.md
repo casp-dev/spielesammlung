@@ -8,7 +8,7 @@ und einen Mehrspielermodus.
 
 ### Voraussetzungen
 
-- **Rust & Cargo** – Eine aktuelle Rust-Toolchain wird benötigt (empfohlen: [rustup](https://rustup.rs/)).
+- **Rust & Cargo** – Eine aktuelle Rust-Toolchain wird benötigt.
 - Für die GUI wird [egui / eframe](https://github.com/emilk/egui) verwendet; die nötigen Abhängigkeiten werden automatisch über Cargo aufgelöst.
 - Für den Mehrspieler-Modus muss der WebSocket-Server erreichbar sein (siehe _Starten des Multiplayer-Servers_).
 
@@ -106,7 +106,7 @@ Das Go-Spiel wird auf einem **19×19-Brett** gespielt. Die Regeln folgen dem kla
 - **Ko-Regel**: Eine Stellungswiederholung wird erkannt und verhindert.
 - **Selbstmord-Regel**: Züge, die den eigenen Stein sofort töten würden (ohne gegnerische Steine zu schlagen), sind nicht erlaubt.
 - **Passen**: Über den „Passen"-Button kann ein Spieler seinen Zug aussetzen. Passen beide Spieler nacheinander, endet das Spiel.
-- **Punktzahl**: Am Spielende wird die Punktzahl nach chinesischer Zählung berechnet (Steine auf dem Brett + umschlossenes Gebiet); Weiß erhält 6,5 Komi-Punkte.
+- **Punktzahl**: Am Spielende wird die Punktzahl nach japanischer Zählung berechnet (geschlagene Steine + umschlossenes Gebiet); Weiß erhält zusätzlich 6,5 Komi-Punkte.
 - **Koordinaten**: Über die Checkbox „Koordinaten" in der Seitenleiste können Spalten- und Zeilenbeschriftungen ein- und ausgeblendet werden.
 - **Neustart**: Das Spiel kann jederzeit über den „Neustarten"-Button zurückgesetzt werden.
 
