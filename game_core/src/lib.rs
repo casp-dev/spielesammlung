@@ -6,7 +6,7 @@ use std::net::TcpStream;
 use tungstenite::client::IntoClientRequest;
 use tungstenite::http::header::HeaderName;
 use tungstenite::stream::MaybeTlsStream;
-use tungstenite::{connect, Message, WebSocket};
+use tungstenite::{Message, WebSocket, connect};
 
 pub trait Game {
     fn name(&self) -> &str;
@@ -236,7 +236,6 @@ pub trait MultiplayerGame: Game {
 
     fn waiting_screen_ui(&mut self, ui: &mut Ui, game_name: &str) {
         let is_dark = ui.visuals().dark_mode;
-        let accent = egui::Color32::from_rgb(0, 131, 255);
 
         let available_width = ui.available_width();
         let card_width = available_width.min(420.0);
@@ -244,10 +243,14 @@ pub trait MultiplayerGame: Game {
         ui.vertical_centered(|ui| {
             ui.add_space(ui.available_height() * 0.15);
             ui.label(
-                egui::RichText::new(format!("{} — Mehrspieler", game_name))
+                egui::RichText::new(format!("{}: Mehrspieler", game_name))
                     .size(26.0)
                     .strong()
-                    .color(egui::Color32::BLACK),
+                    .color(if is_dark {
+                        egui::Color32::from_gray(160)
+                    } else {
+                        egui::Color32::from_gray(100)
+                    }),
             );
 
             ui.add_space(24.0);
@@ -282,27 +285,17 @@ pub trait MultiplayerGame: Game {
                         ui.add_space(8.0);
 
                         let room_key = self.get_room_key_text().clone();
-                        let id_bg = if is_dark {
-                            egui::Color32::from_gray(22)
-                        } else {
-                            egui::Color32::WHITE
-                        };
 
-                        egui::Frame::none()
-                            .fill(id_bg)
-                            .rounding(8.0)
-                            .inner_margin(egui::vec2(20.0, 12.0))
-                            .stroke(egui::Stroke::new(1.5, accent.linear_multiply(0.4)))
-                            .show(ui, |ui| {
-                                ui.vertical_centered(|ui| {
-                                    ui.label(
-                                        egui::RichText::new(&room_key)
-                                            .size(28.0)
-                                            .strong()
-                                            .monospace(),
-                                    );
-                                });
+                        egui::Frame::none().show(ui, |ui| {
+                            ui.vertical_centered(|ui| {
+                                ui.label(
+                                    egui::RichText::new(&room_key)
+                                        .size(28.0)
+                                        .strong()
+                                        .monospace(),
+                                );
                             });
+                        });
 
                         ui.add_space(12.0);
 

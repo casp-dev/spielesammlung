@@ -5,15 +5,15 @@ use game_core::{Game, MultiplayerGame};
 
 use serde_json::Value;
 use std::net::TcpStream;
-use tungstenite::stream::MaybeTlsStream;
 use tungstenite::WebSocket;
+use tungstenite::stream::MaybeTlsStream;
 
 mod engine;
 mod meeples;
 use crate::{
     draw::draw_board,
-    engine::{calculate_board, Engine},
-    meeples::{opposite_color, Color, Meeple, Type},
+    engine::{Engine, calculate_board},
+    meeples::{Color, Meeple, Type, opposite_color},
 };
 mod draw;
 
@@ -240,13 +240,13 @@ impl ChessGame {
             };
             let x = format!(
                 "[{},{}]",
-                self.logs.last().unwrap().0 .0 + add_value,
-                self.logs.last().unwrap().0 .1
+                self.logs.last().unwrap().0.0 + add_value,
+                self.logs.last().unwrap().0.1
             );
             let y = format!(
                 "[{},{}]",
-                self.logs.last().unwrap().1 .0,
-                self.logs.last().unwrap().1 .1
+                self.logs.last().unwrap().1.0,
+                self.logs.last().unwrap().1.1
             );
             let move_msg =
                 format!(r#"{{ "type": "GameMove", "data": {{ "from" : {x}, "to": {y} }} }}"#,);
@@ -265,13 +265,13 @@ impl ChessGame {
                 }
                 let x = format!(
                     "[{},{}]",
-                    self.logs.last().unwrap().0 .0,
-                    self.logs.last().unwrap().0 .1
+                    self.logs.last().unwrap().0.0,
+                    self.logs.last().unwrap().0.1
                 );
                 let y = format!(
                     "[{},{}]",
-                    self.logs.last().unwrap().1 .0,
-                    self.logs.last().unwrap().1 .1
+                    self.logs.last().unwrap().1.0,
+                    self.logs.last().unwrap().1.1
                 );
                 let move_msg =
                     format!(r#"{{ "type": "GameMove", "data": {{ "from" : {x}, "to": {y} }} }}"#,);
@@ -372,22 +372,22 @@ impl ChessGame {
         } else {
             "b "
         });
-        if self.casteling_rights.0 .0 {
+        if self.casteling_rights.0.0 {
             hash_key.push('K');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.0 .1 {
+        if self.casteling_rights.0.1 {
             hash_key.push('Q');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.1 .0 {
+        if self.casteling_rights.1.0 {
             hash_key.push('k');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.1 .1 {
+        if self.casteling_rights.1.1 {
             hash_key.push('q');
         } else {
             hash_key.push('-');

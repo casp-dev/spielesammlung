@@ -1,11 +1,10 @@
 use rand::Rng;
 use std::collections::HashMap;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 pub type PlayerId = u64;
 pub type PlayerSender = mpsc::UnboundedSender<String>;
 
-// Spielraum
 pub struct Room {
     pub players: HashMap<PlayerId, PlayerSender>,
 }

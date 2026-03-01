@@ -9,7 +9,7 @@ pub struct MCTSStats {
     pub iterations: usize,
     #[allow(dead_code)]
     pub root_player: Stone,
-    pub top_moves: Vec<((usize, usize), u32, f32)>, // (Move, Visits, Score)
+    pub top_moves: Vec<((usize, usize), u32, f32)>,
 }
 
 #[derive(Clone)]
@@ -84,62 +84,61 @@ fn get_fast_atari_moves(game: &Game, target_color: Stone) -> Vec<(usize, usize)>
         for x in 0..size {
             let idx = y * size + x;
 
-            if !visited[idx] {
-                if let Some(s) = game.board.grid[idx] {
-                    if s == target_color {
-                        stack.clear();
-                        stack.push((x, y));
-                        visited[idx] = true;
+            if !visited[idx]
+                && let Some(s) = game.board.grid[idx]
+                && s == target_color
+            {
+                stack.clear();
+                stack.push((x, y));
+                visited[idx] = true;
 
-                        let mut liberties = Vec::new();
-                        let mut group_has_liberties = false;
+                let mut liberties = Vec::new();
+                let mut group_has_liberties = false;
 
-                        let mut head = 0;
-                        while head < stack.len() {
-                            let (cx, cy) = stack[head];
-                            head += 1;
+                let mut head = 0;
+                while head < stack.len() {
+                    let (cx, cy) = stack[head];
+                    head += 1;
 
-                            let neighbors = [
-                                if cx > 0 { Some((cx - 1, cy)) } else { None },
-                                if cx < size - 1 {
-                                    Some((cx + 1, cy))
-                                } else {
-                                    None
-                                },
-                                if cy > 0 { Some((cx, cy - 1)) } else { None },
-                                if cy < size - 1 {
-                                    Some((cx, cy + 1))
-                                } else {
-                                    None
-                                },
-                            ];
+                    let neighbors = [
+                        if cx > 0 { Some((cx - 1, cy)) } else { None },
+                        if cx < size - 1 {
+                            Some((cx + 1, cy))
+                        } else {
+                            None
+                        },
+                        if cy > 0 { Some((cx, cy - 1)) } else { None },
+                        if cy < size - 1 {
+                            Some((cx, cy + 1))
+                        } else {
+                            None
+                        },
+                    ];
 
-                            for n in neighbors.iter().flatten() {
-                                let n_idx = n.1 * size + n.0;
-                                match game.board.grid[n_idx] {
-                                    None => {
-                                        if !liberties.contains(n) {
-                                            liberties.push(*n);
-                                        }
-                                        if liberties.len() > 1 {
-                                            group_has_liberties = true;
-                                        }
-                                    }
-                                    Some(stone) if stone == target_color => {
-                                        if !visited[n_idx] {
-                                            visited[n_idx] = true;
-                                            stack.push(*n);
-                                        }
-                                    }
-                                    _ => {}
+                    for n in neighbors.iter().flatten() {
+                        let n_idx = n.1 * size + n.0;
+                        match game.board.grid[n_idx] {
+                            None => {
+                                if !liberties.contains(n) {
+                                    liberties.push(*n);
+                                }
+                                if liberties.len() > 1 {
+                                    group_has_liberties = true;
                                 }
                             }
-                        }
-
-                        if !group_has_liberties && liberties.len() == 1 {
-                            moves.push(liberties[0]);
+                            Some(stone) if stone == target_color => {
+                                if !visited[n_idx] {
+                                    visited[n_idx] = true;
+                                    stack.push(*n);
+                                }
+                            }
+                            _ => {}
                         }
                     }
+                }
+
+                if !group_has_liberties && liberties.len() == 1 {
+                    moves.push(liberties[0]);
                 }
             }
         }
@@ -281,7 +280,7 @@ pub fn get_best_move(game: &Game, _iterations: usize) -> (Option<(usize, usize)>
             }
         }
 
-        // 2. EXPANSION
+        // 2. expansion
         if !node.borrow().is_terminal() {
             while !node.borrow().is_fully_expanded() {
                 let move_option = node.borrow_mut().unexpanded_moves.pop();
@@ -301,7 +300,7 @@ pub fn get_best_move(game: &Game, _iterations: usize) -> (Option<(usize, usize)>
             }
         }
 
-        // 3. ( Fast Atari)
+        // 3. simulation (fast atari)
         let mut sim_state = node.borrow().state.clone();
 
         sim_state.previous_states.clear();
@@ -317,19 +316,19 @@ pub fn get_best_move(game: &Game, _iterations: usize) -> (Option<(usize, usize)>
 
             //  1: Fast Kill
             let kill_moves = get_fast_atari_moves(&sim_state, opp);
-            if let Some(&(kx, ky)) = kill_moves.first() {
-                if sim_state.place_stone(kx, ky).is_ok() {
-                    moved = true;
-                }
+            if let Some(&(kx, ky)) = kill_moves.first()
+                && sim_state.place_stone(kx, ky).is_ok()
+            {
+                moved = true;
             }
 
             //  2: Fast Save
             if !moved {
                 let save_moves = get_fast_atari_moves(&sim_state, c);
-                if let Some(&(sx, sy)) = save_moves.first() {
-                    if sim_state.place_stone(sx, sy).is_ok() {
-                        moved = true;
-                    }
+                if let Some(&(sx, sy)) = save_moves.first()
+                    && sim_state.place_stone(sx, sy).is_ok()
+                {
+                    moved = true;
                 }
             }
 
@@ -337,11 +336,11 @@ pub fn get_best_move(game: &Game, _iterations: usize) -> (Option<(usize, usize)>
             if !moved {
                 let empty = sim_state.get_empty_points();
                 for _ in 0..5 {
-                    if let Some(&(mx, my)) = empty.choose(&mut rng) {
-                        if sim_state.place_stone(mx, my).is_ok() {
-                            moved = true;
-                            break;
-                        }
+                    if let Some(&(mx, my)) = empty.choose(&mut rng)
+                        && sim_state.place_stone(mx, my).is_ok()
+                    {
+                        moved = true;
+                        break;
                     }
                 }
                 if !moved {

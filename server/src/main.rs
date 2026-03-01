@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::tungstenite::Message;
 
 use protocol::{ClientMessage, ServerMessage};

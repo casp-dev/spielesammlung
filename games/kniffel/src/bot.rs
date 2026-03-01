@@ -1,10 +1,10 @@
+use crate::DiceThrow;
+use crate::Rating::*;
 use crate::calculate_points;
 use crate::change_blocked_status_dice;
 use crate::kniffel;
 use crate::kniffel::add_dice_point_table;
 use crate::kniffel::throw_dice;
-use crate::DiceThrow;
-use crate::Rating::*;
 
 #[derive(PartialEq)]
 pub enum Rating {

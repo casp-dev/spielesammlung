@@ -1,6 +1,6 @@
 use crate::{
-    meeples::{get_meeple_at, Color, Meeple, Type},
     ChessGame,
+    meeples::{Color, Meeple, Type, get_meeple_at},
 };
 
 pub fn draw_board(ui: &mut egui::Ui, game: &mut ChessGame) {
