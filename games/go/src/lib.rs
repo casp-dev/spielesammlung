@@ -306,12 +306,12 @@ impl CoreGame for GoGame {
                                 let x = x_f.round() as i32;
                                 let y = y_f.round() as i32;
 
-                                if x >= 0
-                                    && x < grid_size as i32
-                                    && y >= 0
-                                    && y < grid_size as i32
-                                {
-                                    if self.game.board.get(x as usize, y as usize).is_none() {
+                                    if x >= 0
+                                        && x < grid_size as i32
+                                        && y >= 0
+                                        && y < grid_size as i32
+                                        && self.game.board.get(x as usize, y as usize).is_none()
+                                    {
                                         let center = grid_rect.min
                                             + egui::vec2(x as f32 * cell_size, y as f32 * cell_size);
                                         let color = match self.game.current_turn {
@@ -321,7 +321,6 @@ impl CoreGame for GoGame {
                                         painter.circle_filled(center, cell_size * 0.4, color);
                                     }
                                 }
-                            }
                         }
                     }
 

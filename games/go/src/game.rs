@@ -147,11 +147,9 @@ impl Game {
 
         for (nx, ny) in neighbors {
             if let Some(s) = next_board.get(nx, ny) {
-                if s == self.current_turn.other() {
-                    if next_board.count_liberties(nx, ny) == 0 {
-                        let group = next_board.get_group(nx, ny);
-                        captured_stones.extend(group);
-                    }
+                if s == self.current_turn.other() && next_board.count_liberties(nx, ny) == 0 {
+                    let group = next_board.get_group(nx, ny);
+                    captured_stones.extend(group);
                 }
             }
         }

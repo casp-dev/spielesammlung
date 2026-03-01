@@ -13,7 +13,6 @@ pub trait Game {
     fn ui(&mut self, ui: &mut Ui);
 }
 
-#[allow(clippy::needless_async)]
 pub trait MultiplayerGame: Game {
     fn on_text(&mut self, str: String);
     fn set_client(&mut self, client: WebSocket<MaybeTlsStream<TcpStream>>);
@@ -341,7 +340,6 @@ pub trait MultiplayerGame: Game {
             self.start_multiplayer_game();
         } else {
             self.set_room_key_text(String::from("No Host for the key"));
-            return;
         }
     }
 }

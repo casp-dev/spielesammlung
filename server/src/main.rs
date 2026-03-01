@@ -18,6 +18,12 @@ pub struct ServerState {
     next_player_id: RwLock<u64>,
 }
 
+impl Default for ServerState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerState {
     pub fn new() -> Self {
         Self {
