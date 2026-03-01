@@ -208,16 +208,8 @@ impl Game {
 
     pub fn calculate_score(&self) -> (f32, f32) {
         let size = self.board.size;
-        let mut black_score = self.captured_black as f32;
-        let mut white_score = self.captured_white as f32 + 6.5; // Komi
-
-        for stone in &self.board.grid {
-            match stone {
-                Some(Stone::Black) => black_score += 1.0,
-                Some(Stone::White) => white_score += 1.0,
-                None => {}
-            }
-        }
+        let mut black_score = self.captured_white as f32;
+        let mut white_score = self.captured_black as f32 + 6.5; // Komi
 
         // gebiet
         let mut visited = vec![false; size * size];
