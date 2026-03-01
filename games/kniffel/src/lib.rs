@@ -4,12 +4,12 @@ mod kniffel;
 use crate::bot::*;
 use crate::kniffel::*;
 use game_core::{Game, MultiplayerGame};
-use kniffel::{next_player, throw_dice, YahtzeeGame};
+use kniffel::{YahtzeeGame, next_player, throw_dice};
 
 use serde_json::Value;
 use std::net::TcpStream;
-use tungstenite::stream::MaybeTlsStream;
 use tungstenite::WebSocket;
+use tungstenite::stream::MaybeTlsStream;
 
 #[derive(PartialEq)]
 enum Screen {

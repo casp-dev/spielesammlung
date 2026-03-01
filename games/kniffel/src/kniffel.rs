@@ -38,7 +38,7 @@ impl Dice {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PointTable {
     pub points_thrown: [Option<u8>; 13], //also die Punkte bei einsern, zweiern etc
-    pub total_points: [u16; 4],           //Zwischensumme oben, oben mit bonus, unten, gesamt
+    pub total_points: [u16; 4],          //Zwischensumme oben, oben mit bonus, unten, gesamt
 }
 
 pub type DiceThrow = [Dice; 5];

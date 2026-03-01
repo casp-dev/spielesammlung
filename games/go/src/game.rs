@@ -78,10 +78,11 @@ impl Board {
             group.push((cx, cy));
 
             for (nx, ny) in self.get_neighbors(cx, cy) {
-                if let Some(n_color) = self.get(nx, ny) {
-                    if n_color == color && !visited.contains(&(nx, ny)) {
-                        stack.push((nx, ny));
-                    }
+                if let Some(n_color) = self.get(nx, ny)
+                    && n_color == color
+                    && !visited.contains(&(nx, ny))
+                {
+                    stack.push((nx, ny));
                 }
             }
         }
@@ -141,37 +142,31 @@ impl Game {
         let mut next_board = self.board.clone();
         next_board.set(x, y, Some(self.current_turn));
 
-        // Check captures
         let neighbors = next_board.get_neighbors(x, y);
         let mut captured_stones = Vec::new();
 
         for (nx, ny) in neighbors {
-            if let Some(s) = next_board.get(nx, ny) {
-                if s == self.current_turn.other() {
-                    if next_board.count_liberties(nx, ny) == 0 {
-                        let group = next_board.get_group(nx, ny);
-                        captured_stones.extend(group);
-                    }
-                }
+            if let Some(s) = next_board.get(nx, ny)
+                && s == self.current_turn.other()
+                && next_board.count_liberties(nx, ny) == 0
+            {
+                let group = next_board.get_group(nx, ny);
+                captured_stones.extend(group);
             }
         }
 
-        // Remove captured stones
         for &(cx, cy) in &captured_stones {
             next_board.set(cx, cy, None);
         }
 
-        // Check suicide
         if next_board.count_liberties(x, y) == 0 {
             return Err("Selbstmordzug".to_string());
         }
 
-        // Check Ko (simple repetition)
         if self.previous_states.contains(&next_board.grid) {
             return Err("Ko Regelverstoß".to_string());
         }
 
-        // Apply move
         self.board = next_board;
         if self.current_turn == Stone::Black {
             self.captured_white += captured_stones.len();
@@ -199,11 +194,6 @@ impl Game {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn get_valid_moves(&self) {
-        //todo
-    }
-
     pub fn get_empty_points(&self) -> Vec<(usize, usize)> {
         let mut points = Vec::new();
         for y in 0..self.board.size {
@@ -217,14 +207,61 @@ impl Game {
     }
 
     pub fn calculate_score(&self) -> (f32, f32) {
+        let size = self.board.size;
         let mut black_score = self.captured_black as f32;
-        let mut white_score = self.captured_white as f32;
+        let mut white_score = self.captured_white as f32 + 6.5; // Komi
 
         for stone in &self.board.grid {
             match stone {
                 Some(Stone::Black) => black_score += 1.0,
                 Some(Stone::White) => white_score += 1.0,
                 None => {}
+            }
+        }
+
+        // gebiet
+        let mut visited = vec![false; size * size];
+
+        for y in 0..size {
+            for x in 0..size {
+                let idx = y * size + x;
+                if visited[idx] || self.board.get(x, y).is_some() {
+                    continue;
+                }
+
+                // flood-fill
+                let mut region = Vec::new();
+                let mut stack = vec![(x, y)];
+                let mut borders_black = false;
+                let mut borders_white = false;
+
+                while let Some((cx, cy)) = stack.pop() {
+                    let ci = cy * size + cx;
+                    if visited[ci] {
+                        continue;
+                    }
+                    visited[ci] = true;
+                    region.push((cx, cy));
+
+                    for (nx, ny) in self.board.get_neighbors(cx, cy) {
+                        let ni = ny * size + nx;
+                        match self.board.get(nx, ny) {
+                            None => {
+                                if !visited[ni] {
+                                    stack.push((nx, ny));
+                                }
+                            }
+                            Some(Stone::Black) => borders_black = true,
+                            Some(Stone::White) => borders_white = true,
+                        }
+                    }
+                }
+
+                if borders_black && !borders_white {
+                    black_score += region.len() as f32;
+                } else if borders_white && !borders_black {
+                    white_score += region.len() as f32;
+                }
             }
         }
 
@@ -291,19 +328,8 @@ mod tests {
 
     #[test]
     fn test_ko_rule() {
-        // .  . B .
-        // B W . B
-        // . . B .
-
         let mut game = Game::new(5);
-        let params = [
-            (2, 1), // B
-            (3, 1), // W
-            (1, 2), // B
-            (4, 2), // W
-            (2, 3), // B
-            (3, 3), // W
-        ];
+        let params = [(2, 1), (3, 1), (1, 2), (4, 2), (2, 3), (3, 3)];
 
         for (x, y) in params {
             game.place_stone(x, y).unwrap();
