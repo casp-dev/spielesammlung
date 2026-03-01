@@ -98,7 +98,8 @@ Das Schachspiel unterstützt alle klassischen Regeln (inklusive **En Passant** u
 #### Bot-Modus
 
 Der Schach-Bot basiert auf einem **Min-Max-Algorithmus mit Alpha-Beta Pruning** und **Quiescence Search**.
-- **Level-Auswahl**: Oben rechts im Menü befindet sich ein **Slider**, mit dem das Bot-Level (1-4) gewählt wird. Höhere Level erhöhen die Rekursionstiefe und damit die Bedenkzeit des Bots. 
+
+- **Level-Auswahl**: Oben rechts im Menü befindet sich ein **Slider**, mit dem das Bot-Level (1-4) gewählt wird. Höhere Level erhöhen die Rekursionstiefe und damit die Bedenkzeit des Bots.
 
 #### Mehrspieler-Modus
 
@@ -165,12 +166,22 @@ Gewinnt oder verliert man das Spiel, öffnet sich ein Fenster mit folgenden Opti
 
 Das Kniffel-Spiel lässt sich wahlweise im lokalen Modus oder online spielen. Die Steuerung und das Punktesystem orientieren sich streng an den bekannten Kniffel-Regeln.
 
-- **Spielmodi & Teilnehmer**: 
+- **Spielmodi & Teilnehmer**:
   - Der Online-Multiplayer (siehe [3.1. Server](#31-server)) unterstützt **zwei Spieler**.
   - Der lokale Modus erlaubt bis zu **vier Spieler**. Hier können zusätzlich bis zu **drei Bot-Gegner** für die Partie eingestellt werden.
 - **Spielablauf**: Ein Klick auf den Würfelbutton startet den Wurf. Nach dem Würfeln wird die zugehörige Spalte des aktiven Spielers in der grafischen Punktetabelle freigeschaltet, um ein Ergebnis direkt dort einzutragen.
 - **Hilfestellung**: Wenn man mit der Maus über die jeweiligen Kategorien in der Punktetabelle fährt (Hover-Effekt), erfährt man genau, welche Würfelkombination erforderlich ist und wie sich die Punkte zusammensetzen.
 - **Zugwechsel**: Sobald ein Spieler sein Würfelergebnis in eine Kategorie eingetragen hat, wird sein Zug offiziell beendet und der nächste Spieler (bzw. Bot) ist an der Reihe.
+
+## Testen
+
+Die Anwendung wurde überwiegend **manuell** getestet. Für kritische Spiellogik (z. B. Schlagregeln und Ko-Regel im Go) existieren ergänzende **Unit-Tests** (`cargo test`), die korrekte Züge, illegale Züge und Spielende-Bedingungen überprüfen.
+
+Der Schwerpunkt auf manuelles Testen wurde bewusst gewählt, da er für dieses Projekt mehrere Vorteile bietet:
+
+- **Flexibilität bei komplexen Spielszenarien**: Brettspiele erzeugen eine enorme Vielfalt an Stellungen. Durch manuelles Durchspielen konnten gezielt Randfälle getestet werden (z. B. Rochade nach vorherigem König-Zug, En Passant, Bauernumwandlung, Ko-Situationen im Go, Kniffel-Sonderfälle), die in automatisierten Tests nur schwer vollständig abzubilden wären.
+- **UI- und Interaktionstests**: Die korrekte Darstellung des Spielbretts, die Hervorhebung legaler Züge, Animationen und die Responsivität der Oberfläche lassen sich am effektivsten visuell beurteilen.
+- **Mehrspieler-Kommunikation**: Das Zusammenspiel von Server und mehreren Clients (Raum erstellen, beitreten, Züge synchronisieren, Disconnect-Handling) wurde durch paralleles Starten mehrerer Instanzen manuell überprüft.
 
 ## Technologien
 
