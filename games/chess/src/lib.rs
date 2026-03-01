@@ -426,9 +426,7 @@ impl Game for ChessGame {
 
     fn ui(&mut self, ui: &mut Ui) {
         if self.state == "waiting for opponent" {
-            ui.heading("Rust Go - Multiplayer");
-            ui.label(format!("Room ID: {}", self.room_key));
-            ui.label("Warte auf Gegner...");
+            self.waiting_screen_ui(ui, "Schach");
 
             // Non-blocking: auf PlayerJoined msg warten
             if self.client.is_some() {
@@ -452,8 +450,6 @@ impl Game for ChessGame {
                     }
                 }
             }
-
-            if ui.button("Spiel starten").clicked() {}
         } else if self.state != "initial" {
             if self.state == "Tie because of triple repetition"
                 || self.state == "White has won"

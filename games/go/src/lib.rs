@@ -25,7 +25,7 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "Rust Go",
+        "Go",
         options,
         Box::new(|_cc| Ok(Box::new(GoGame::default()))),
     )
@@ -91,9 +91,7 @@ impl CoreGame for GoGame {
                 self.multipalyer_ui(ui, false, false);
             }
             GoGameState::WaitingForOpponent => {
-                ui.heading("Rust Go - Multiplayer");
-                ui.label(format!("Room ID: {}", self.room_key));
-                ui.label("Warte auf Gegner...");
+                self.waiting_screen_ui(ui, "Go");
 
                 if self.client.is_some() {
                     ui.ctx().request_repaint();
@@ -118,10 +116,6 @@ impl CoreGame for GoGame {
                         }
                     }
                 }
-
-                if ui.button("Spiel starten").clicked() {
-                    self.game_state = GoGameState::Playing;
-                }
             }
 
             GoGameState::Playing => {
@@ -129,7 +123,7 @@ impl CoreGame for GoGame {
                 let board_size = (available_size.y - 20.0).min(available_size.x - 200.0);
 
                 ui.horizontal(|ui| {
-                    // === Board (links) ===
+
                     let (response, painter) = ui.allocate_painter(
                         egui::Vec2::new(board_size, board_size),
                         egui::Sense::click(),
@@ -138,7 +132,6 @@ impl CoreGame for GoGame {
                     let rect = response.rect;
                     let grid_size = self.game.board.size;
 
-                    // farbe
                     painter.rect_filled(
                         rect,
                         egui::Rounding::same(20.0),
@@ -283,7 +276,7 @@ impl CoreGame for GoGame {
                         }
                     }
 
-                    // Letzter Zug Mark
+                    // Letzter Zug
                     if let Some((lx, ly)) = self.game.last_move {
                         if let Some(stone) = self.game.board.get(lx, ly) {
                             let center = grid_rect.min
@@ -370,7 +363,6 @@ impl CoreGame for GoGame {
                                             let _ = self.send(&move_msg);
                                         }
 
-                                        // AI auto-play (nur local)
                                         if self.ai_enabled
                                             && !self.multiplayer
                                             && !self.game.game_over
