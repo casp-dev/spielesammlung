@@ -63,6 +63,12 @@ Gewinnt oder verliert man das Spiel, öffnet sich ein Fenster mit folgenden Opti
 - Oder es auf der gleichen Schwierigkeitsstufe noch einmal versuchen
 
 ### 7. Kniffel
+Bei Kniffel kann man ein lokales oder ein online multiplayer Kniffelspiel starten. 
+Der online Multiplayer untersützt zwei Spieler, während der lokale Modus bis zu vier 
+Spielererlaubt. Dort können auch bis zu drei Botgegner antreten.
 
-
-
+Durch Drücken des Würfelbuttons wird gewürfelt und die entsprechende Spalte des Spielers
+in der Punktetabelle freigeschaltet um die Punkte einzutragen.
+Durch Hovern über den Kategorien kann man einsehen was die Anforderungen sind und wie viele 
+Punkte sie bringen.
+Der Zug wird durch das eintragen der Punkte beendet und der nächste Spieler ist dran.
