@@ -1,6 +1,6 @@
 use std::thread;
 
-use crate::meeples::{opposite_color, Color, Meeple, Type};
+use crate::meeples::{Color, Meeple, Type, opposite_color};
 #[derive(Clone, Copy)]
 pub struct Engine {
     pub level: u16,

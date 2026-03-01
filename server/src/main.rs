@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::tungstenite::Message;
 
 use protocol::{ClientMessage, ServerMessage};
@@ -16,6 +16,12 @@ use room::RoomManager;
 pub struct ServerState {
     rooms: RoomManager,
     next_player_id: RwLock<u64>,
+}
+
+impl Default for ServerState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ServerState {

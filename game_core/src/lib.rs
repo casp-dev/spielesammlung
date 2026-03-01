@@ -6,14 +6,13 @@ use std::net::TcpStream;
 use tungstenite::client::IntoClientRequest;
 use tungstenite::http::header::HeaderName;
 use tungstenite::stream::MaybeTlsStream;
-use tungstenite::{connect, Message, WebSocket};
+use tungstenite::{Message, WebSocket, connect};
 
 pub trait Game {
     fn name(&self) -> &str;
     fn ui(&mut self, ui: &mut Ui);
 }
 
-#[allow(clippy::needless_async)]
 pub trait MultiplayerGame: Game {
     fn on_text(&mut self, str: String);
     fn set_client(&mut self, client: WebSocket<MaybeTlsStream<TcpStream>>);
@@ -235,6 +234,86 @@ pub trait MultiplayerGame: Game {
     fn get_room_key_text(&mut self) -> &mut String;
     fn set_room_key_text(&mut self, text: String);
 
+    fn waiting_screen_ui(&mut self, ui: &mut Ui, game_name: &str) {
+        let is_dark = ui.visuals().dark_mode;
+
+        let available_width = ui.available_width();
+        let card_width = available_width.min(420.0);
+
+        ui.vertical_centered(|ui| {
+            ui.add_space(ui.available_height() * 0.15);
+            ui.label(
+                egui::RichText::new(format!("{}: Mehrspieler", game_name))
+                    .size(26.0)
+                    .strong()
+                    .color(if is_dark {
+                        egui::Color32::from_gray(160)
+                    } else {
+                        egui::Color32::from_gray(100)
+                    }),
+            );
+
+            ui.add_space(24.0);
+
+            let card_fill = if is_dark {
+                egui::Color32::from_gray(35)
+            } else {
+                egui::Color32::from_gray(245)
+            };
+            let card_stroke = if is_dark {
+                egui::Stroke::new(1.0, egui::Color32::from_gray(60))
+            } else {
+                egui::Stroke::new(1.0, egui::Color32::from_gray(200))
+            };
+
+            egui::Frame::none()
+                .fill(card_fill)
+                .stroke(card_stroke)
+                .rounding(12.0)
+                .inner_margin(egui::vec2(32.0, 28.0))
+                .show(ui, |ui| {
+                    ui.set_width(card_width);
+                    ui.vertical_centered(|ui| {
+                        ui.label(egui::RichText::new("Raum-Schlüssel").size(13.0).color(
+                            if is_dark {
+                                egui::Color32::from_gray(160)
+                            } else {
+                                egui::Color32::from_gray(100)
+                            },
+                        ));
+
+                        ui.add_space(8.0);
+
+                        let room_key = self.get_room_key_text().clone();
+
+                        egui::Frame::none().show(ui, |ui| {
+                            ui.vertical_centered(|ui| {
+                                ui.label(
+                                    egui::RichText::new(&room_key)
+                                        .size(28.0)
+                                        .strong()
+                                        .monospace(),
+                                );
+                            });
+                        });
+
+                        ui.add_space(12.0);
+
+                        ui.label(
+                            egui::RichText::new("Teile diesen Schlüssel mit deinem Gegner")
+                                .size(12.5)
+                                .italics()
+                                .color(if is_dark {
+                                    egui::Color32::from_gray(140)
+                                } else {
+                                    egui::Color32::from_gray(120)
+                                }),
+                        );
+                    });
+                });
+        });
+    }
+
     fn join_room(&mut self) {
         let room_key = self.get_room_key_text().clone();
         if room_key.is_empty() {
@@ -254,7 +333,6 @@ pub trait MultiplayerGame: Game {
             self.start_multiplayer_game();
         } else {
             self.set_room_key_text(String::from("No Host for the key"));
-            return;
         }
     }
 }

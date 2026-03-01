@@ -5,15 +5,15 @@ use game_core::{Game, MultiplayerGame};
 
 use serde_json::Value;
 use std::net::TcpStream;
-use tungstenite::stream::MaybeTlsStream;
 use tungstenite::WebSocket;
+use tungstenite::stream::MaybeTlsStream;
 
 mod engine;
 mod meeples;
 use crate::{
     draw::draw_board,
-    engine::{calculate_board, Engine},
-    meeples::{opposite_color, Color, Meeple, Type},
+    engine::{Engine, calculate_board},
+    meeples::{Color, Meeple, Type, opposite_color},
 };
 mod draw;
 
@@ -240,13 +240,13 @@ impl ChessGame {
             };
             let x = format!(
                 "[{},{}]",
-                self.logs.last().unwrap().0 .0 + add_value,
-                self.logs.last().unwrap().0 .1
+                self.logs.last().unwrap().0.0 + add_value,
+                self.logs.last().unwrap().0.1
             );
             let y = format!(
                 "[{},{}]",
-                self.logs.last().unwrap().1 .0,
-                self.logs.last().unwrap().1 .1
+                self.logs.last().unwrap().1.0,
+                self.logs.last().unwrap().1.1
             );
             let move_msg =
                 format!(r#"{{ "type": "GameMove", "data": {{ "from" : {x}, "to": {y} }} }}"#,);
@@ -265,13 +265,13 @@ impl ChessGame {
                 }
                 let x = format!(
                     "[{},{}]",
-                    self.logs.last().unwrap().0 .0,
-                    self.logs.last().unwrap().0 .1
+                    self.logs.last().unwrap().0.0,
+                    self.logs.last().unwrap().0.1
                 );
                 let y = format!(
                     "[{},{}]",
-                    self.logs.last().unwrap().1 .0,
-                    self.logs.last().unwrap().1 .1
+                    self.logs.last().unwrap().1.0,
+                    self.logs.last().unwrap().1.1
                 );
                 let move_msg =
                     format!(r#"{{ "type": "GameMove", "data": {{ "from" : {x}, "to": {y} }} }}"#,);
@@ -324,17 +324,10 @@ impl ChessGame {
         if !can_move {
             for colored_meeple in colores.1.clone() {
                 if colored_meeple
-                    .show_moves(
-                        &self.game_board,
-                        &self.logs.last().unwrap(),
-                        &colores.0
-                    )
+                    .show_moves(&self.game_board, &self.logs.last().unwrap(), &colores.0)
                     .contains(&colores.0.last().unwrap().pos)
                 {
-                    self.state = format!(
-                        "{:?} has won",
-                        opposite_color(self.turn)
-                    );
+                    self.state = format!("{:?} has won", opposite_color(self.turn));
                     return;
                 }
             }
@@ -379,22 +372,22 @@ impl ChessGame {
         } else {
             "b "
         });
-        if self.casteling_rights.0 .0 {
+        if self.casteling_rights.0.0 {
             hash_key.push('K');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.0 .1 {
+        if self.casteling_rights.0.1 {
             hash_key.push('Q');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.1 .0 {
+        if self.casteling_rights.1.0 {
             hash_key.push('k');
         } else {
             hash_key.push('-');
         }
-        if self.casteling_rights.1 .1 {
+        if self.casteling_rights.1.1 {
             hash_key.push('q');
         } else {
             hash_key.push('-');
@@ -496,9 +489,7 @@ impl Game for ChessGame {
 
     fn ui(&mut self, ui: &mut Ui) {
         if self.state == "waiting for opponent" {
-            ui.heading("Rust Chess - Multiplayer");
-            ui.label(format!("Room ID: {}", self.room_key));
-            ui.label("Warte auf Gegner...");
+            self.waiting_screen_ui(ui, "Schach");
 
             //auf msg warten
             if self.client.is_some() {
@@ -522,15 +513,13 @@ impl Game for ChessGame {
                     }
                 }
             }
-
-            if ui.button("Spiel starten").clicked() {}
         } else if self.state != "initial" {
             let reset_btn = egui::Button::new("Reset Game");
             if self.state == "Tie because of triple repetition"
                 || self.state == "White has won"
                 || self.state == "Black has won"
                 || self.state == "Tie because of no possible moves for White"
-                || self.state == "Tie because of no possible moves for Black"                
+                || self.state == "Tie because of no possible moves for Black"
             {
                 ui.horizontal(|ui| {
                     ui.heading(RichText::new(&self.state).strong().color(Color32::RED));
