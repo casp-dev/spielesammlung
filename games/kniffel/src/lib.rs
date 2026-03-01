@@ -82,10 +82,31 @@ impl KniffelGame {
         let text_size = 20.0;
         let button_color = egui::Color32::from_rgb(0, 131, 255);
 
+        let is_darkmode_on = ui.visuals().dark_mode;
+        let frame_color = if is_darkmode_on {
+            egui::Color32::from_gray(50)
+        } else {
+            egui::Color32::from_gray(220)
+        };
+
         ui.horizontal(|ui| {
-            ui.label("Schlüssel:");
-            ui.add(egui::TextEdit::singleline(&mut self.room_key).desired_width(150.0));
-            if ui.button("Beitreten").clicked() {
+            ui.label(egui::RichText::new("Schlüssel:").size(12.5));
+
+            egui::Frame::none()
+                .fill(frame_color)
+                .rounding(5.0)
+                .inner_margin(egui::vec2(8.0, 1.0))
+                .show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(self.get_room_key_text())
+                            .desired_width(150.0)
+                            .frame(false),
+                    );
+                });
+
+            let join_btn = egui::Button::new(egui::RichText::new("Beitreten"));
+
+            if ui.add(join_btn).clicked() {
                 self.join_room();
             }
         });
