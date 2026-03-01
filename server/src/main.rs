@@ -1,3 +1,8 @@
+// Hinweis: Für die Grundstruktur des WebSocket-Servers (Connection-Handling,
+// Tokio-Runtime, Message-Loop) wurde ChatGPT (Free-Version) als Lernhilfe aufgrund
+// fehlender Erfahrung und Zeitdruck herangezogen. Einzelne Code-Muster wurden daraus
+// übernommen und angepasst.
+
 mod protocol;
 mod room;
 

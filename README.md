@@ -120,6 +120,8 @@ Der Go-Bot basiert auf einem **Monte Carlo Tree Search (MCTS)**-Algorithmus. Er 
 
 Nach jedem Bot-Zug wird angezeigt, welchen Zug er gewählt hat, wie viele MCTS-Iterationen durchgeführt wurden und welche Top-Züge bewertet wurden.
 
+Bei der Implementierung des MCTS habe ich mich an diesen Projekten von [Mamy Ratsimbazafy](https://github.com/mratsim/rustygo) und [Fioelkais](https://github.com/Fioelkais/MCTS) orientiert, um den grundlegenden MCTS-Algorithmus mit UCT zu verstehen. Die eigentliche Implementierung unterscheidet sich jedoch deutlich: kontinuierliches Sigmoid-Scoring statt binärem Gewinn/Verlust, heuristische Simulation mit Atari-Erkennung statt reiner Zufalls-Playouts, und eine zeitbasierte Suchsteuerung.
+
 #### Multiplayer-Modus
 
 Im Mehrspieler-Modus wird dem Spieler oben rechts angezeigt, welche Steinfarbe er hat und ob er am Zug ist. Züge, Passen und Neustarts werden automatisch an den Gegner übertragen. Verlässt der Gegner das Spiel, wird man automatisch zurück ins Menü geleitet.
