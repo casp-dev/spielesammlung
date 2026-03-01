@@ -88,14 +88,21 @@ Wenn man eines der drei Spiele auswählt, hat man die Möglichkeit, über den Bu
 
 ### 4. Schach
 
-Für jeden Spielmodus gilt Folgendes:
-Wenn man eine Figur bewegen möchte, muss man diese anklicken und daraufhin werden alle legalen Bewegungsmöglichkeiten grün markiert. Die Farben dürfen abwechselnd jeweils einen Zug machen, Weiß fängt an. Der zuletzt gemachte Zug wird gelb markiert. Es ist jederzeit möglich, mit dem "Reset Game" Button das Schachbrett zurückzusetzen oder mit dem Button "Zurück zum Menü" zum Hauptmenü zurückzukehren.
-Die normalen Bewegungsmöglichkeiten aus Schach sind implementiert, inklusive En Passant und Roschade. Es sind zudem nur legale Züge möglich, somit ist es zum Beispiel nicht erlaubt, wenn der weiße König im Schach ist, eine weiße Figur so zu bewegen, dass es nicht verhindert,dass der König weiterhin im Schach ist. Ein anderes Beispiel wäre, dass sich ein schwarzer Bauer nicht bewegen kann, wenn durch seinen Spielzug der schwarzer König im Schach wäre. Wenn man mit einem Bauern ans Ende des Spielfeldes kommt, kann man in einem kleinen, grauen Bereich unterhalb des Spielfelds auswählen, mit welcher Art von Figur man den Bauern gerne austauschen würde. Nachdem man diese gewählt (angeklickt) hat, mutiert der Bauer zu dieser Figur der gleichen Farbe.
-Nach der Auswahl des Spielmodus wird zunächst eine Information über die Wahl in Grün angezeigt und sobald ein Zug gemacht wird, steht an dieser Stelle die "Current Evaluation". Diese beschreibt, welche Farbe gerade im Vorteil ist, hierbei sind positive Werte gut für Weiß und negative Werte gut für Schwarz.
-Das Spiel ist vorbei, wenn eine Farbe Matt gesetzt wurde oder es zu einem Unentschieden kam. Bei beiden Möglichkeiten steht nun an der Stelle, wo "Current Evaluation" war, ein roter Text, der anzeigt, welche Farbe das Spiel gewonnen hat oder der anzeigt, dass es sich um ein Unentschieden handelt. Hier kommt es zu einem Unentschieden, wenn sich eine Farbe gar nicht mehr bewegen kann oder wenn es zu einer dreifachen Stellungswiederholung gekommen ist. Daraufhin kann man das Spiel mit dem Reset Button zurücksetzen und eine neue Partie starten.
-Bei einem lokalen Spiel kann man selbst, oder mit jemand anderem alle Figuren für beide Farben bewegen.
-Bei einem Spiel gegen den Bot kann man mit einem Slider (der sich oben rechts bei dem Fenster befindet) das Level des Bots einstellen. Hier ist Level 1 bis 4 möglich. Wenn man dann auf den Button "Spiele gegen einen Bot (Level n)" klickt, kommt man als Weiß in ein Schachfenster und kann gegen den Bot spielen. Bei einem höheren Level ist mit mehr Wartezeit zu rechnen, bis der Bot einen Zug macht, da beim Berechnen der Züge mit einer höheren Rekursionstiefe gearbeitet wird. Allgemein basiert der Bot auf einem Min-Max-Algorithmus mit Alpha-Beta Pruning und einem Quiescence Search Algorithmus zur Erweiterung des Min-Max.
-Um den Raum zu erstellen und ihm beizutreten, siehe 3.1. Clients und Anwendung. Wenn der Spielbildschirm nun für beide Spieler geöffnet ist, sieht man für das Mulitplayerspiel eine kleine Information darüber, welche Farbe man ist und wer nun den nächsten Zug machen darf. Wenn ein Bauer am Ende des Spielfeldes angekommen ist, kann der Spieler einfach auswählen, welche Figur er gerne haben möchte und dann wird bei dem anderen Spieler diese Figur auch sofort gesetzt. Wenn man das Spiel neustarten möchte, kann man das hier weiterhin über den Reset Button.
+Das Schachspiel unterstützt alle klassischen Regeln (inklusive **En Passant** und **Rochade**). Es wird strikt auf legale Züge geachtet (z. B. können gefesselte Figuren nicht bewegt werden, wenn dadurch der eigene König ins Schach gesetzt würde).
+
+- **Zugmechanik**: Ein Klick auf eine Figur markiert alle legalen Züge dieser Figur **grün**. Der zuletzt gespielte Zug wird auf dem Brett **gelb** hervorgehoben.
+- **Bauernumwandlung (Promotion)**: Erreicht ein Bauer die gegnerische Grundreihe, erscheint unterhalb des Brettes ein kleiner grauer Bereich zur Auswahl der neuen Figur.
+- **Stellungsbewertung & Status**: Oberhalb des Bretts wird fortlaufend die "Current Evaluation" angezeigt (positive Werte = Weiß im Vorteil, negative Werte = Schwarz im Vorteil). Bei Matt, Patt oder dreifacher Stellungswiederholung wird hier das Endergebnis (Sieger/Unentschieden) in roter Schrift angezeigt.
+- **Steuerung**: Über die Buttons "Reset Game" und "Zurück zum Menü" lässt sich eine Partie jederzeit neu starten oder verlassen.
+
+#### Bot-Modus
+
+Der Schach-Bot basiert auf einem **Min-Max-Algorithmus mit Alpha-Beta Pruning** und **Quiescence Search**.
+- **Level-Auswahl**: Oben rechts im Menü befindet sich ein **Slider**, mit dem das Bot-Level (1-4) gewählt wird. Höhere Level erhöhen die Rekursionstiefe und damit die Bedenkzeit des Bots. 
+
+#### Mehrspieler-Modus
+
+Im Online-Spiel (siehe [3.1. Server](#31-server)) wird jedem Spieler die zugewiesene Farbe sowie der aktuelle Spieler am Zug als Statusnachricht angezeigt. Züge und spezielle Aktionen wie die Bauernumwandlung werden dabei in Echtzeit synchronisiert.
 
 ### 5. Go
 
@@ -156,15 +163,14 @@ Gewinnt oder verliert man das Spiel, öffnet sich ein Fenster mit folgenden Opti
 
 ### 7. Kniffel
 
-Bei Kniffel kann man ein lokales oder ein online multiplayer Kniffelspiel starten.
-Der online Multiplayer untersützt zwei Spieler, während der lokale Modus bis zu vier
-Spielererlaubt. Dort können auch bis zu drei Botgegner antreten.
+Das Kniffel-Spiel lässt sich wahlweise im lokalen Modus oder online spielen. Die Steuerung und das Punktesystem orientieren sich streng an den bekannten Kniffel-Regeln.
 
-Durch Drücken des Würfelbuttons wird gewürfelt und die entsprechende Spalte des Spielers
-in der Punktetabelle freigeschaltet um die Punkte einzutragen.
-Durch Hovern über den Kategorien kann man einsehen was die Anforderungen sind und wie viele
-Punkte sie bringen.
-Der Zug wird durch das eintragen der Punkte beendet und der nächste Spieler ist dran.
+- **Spielmodi & Teilnehmer**: 
+  - Der Online-Multiplayer (siehe [3.1. Server](#31-server)) unterstützt **zwei Spieler**.
+  - Der lokale Modus erlaubt bis zu **vier Spieler**. Hier können zusätzlich bis zu **drei Bot-Gegner** für die Partie eingestellt werden.
+- **Spielablauf**: Ein Klick auf den Würfelbutton startet den Wurf. Nach dem Würfeln wird die zugehörige Spalte des aktiven Spielers in der grafischen Punktetabelle freigeschaltet, um ein Ergebnis direkt dort einzutragen.
+- **Hilfestellung**: Wenn man mit der Maus über die jeweiligen Kategorien in der Punktetabelle fährt (Hover-Effekt), erfährt man genau, welche Würfelkombination erforderlich ist und wie sich die Punkte zusammensetzen.
+- **Zugwechsel**: Sobald ein Spieler sein Würfelergebnis in eine Kategorie eingetragen hat, wird sein Zug offiziell beendet und der nächste Spieler (bzw. Bot) ist an der Reihe.
 
 ## Technologien
 
